@@ -1,0 +1,47 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "js/*"
+      ],
+      "@core/*": [
+        "js/core/*"
+      ],
+      "@system/*": [
+        "js/system/*"
+      ],
+      "@apps/*": [
+        "js/apps/*"
+      ]
+    },
+    "types": [
+      "vite/client"
+    ]
+  },
+  "include": [
+    "src/main.js",
+    "js/core/events.js",
+    "js/core/sanitize.js",
+    "js/core/validate.js",
+    "js/core/state.js",
+    "js/types/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

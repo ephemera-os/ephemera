@@ -1,0 +1,356 @@
+:root {
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #12121a;
+    --bg-tertiary: #1a1a25;
+    --fg-primary: #e8e8f0;
+    --fg-secondary: #9898a8;
+    --fg-muted: #8585a0;
+    --accent: #00d4aa;
+    --accent-hover: #00f0c0;
+    --accent-contrast: #0a0a0f;
+    --accent-glow: rgba(0, 212, 170, 0.3);
+    --danger: #ff4d6a;
+    --danger-contrast: #0a0a0f;
+    --warning: #ffb84d;
+    --warning-contrast: #0a0a0f;
+    --border: rgba(255, 255, 255, 0.08);
+    --glass: rgba(10, 10, 15, 0.85);
+    --window-shadow: 0 25px 80px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.4);
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+}
+
+[data-theme="light"] {
+    --bg-primary: #f5f5fa;
+    --bg-secondary: #eaeaf0;
+    --bg-tertiary: #dddde5;
+    --fg-primary: #1a1a2e;
+    --fg-secondary: #4a4a5a;
+    --fg-muted: #5f5f70;
+    --accent: #007d66;
+    --accent-hover: #006a57;
+    --accent-contrast: #f5f5fa;
+    --accent-glow: rgba(0, 125, 102, 0.28);
+    --danger: #c62848;
+    --danger-contrast: #f5f5fa;
+    --warning: #925d00;
+    --warning-contrast: #f5f5fa;
+    --border: rgba(0, 0, 0, 0.2);
+    --glass: rgba(245, 245, 250, 0.92);
+    --window-shadow: 0 15px 50px rgba(0, 0, 0, 0.15), 0 5px 20px rgba(0, 0, 0, 0.1);
+}
+
+:root[data-high-contrast="true"],
+html.high-contrast {
+    --bg-primary: #000000;
+    --bg-secondary: #000000;
+    --bg-tertiary: #111111;
+    --fg-primary: #ffffff;
+    --fg-secondary: #ffffff;
+    --fg-muted: #e8e8e8;
+    --accent: #00ffff;
+    --accent-hover: #7fffff;
+    --accent-contrast: #000000;
+    --accent-glow: rgba(0, 255, 255, 0.45);
+    --danger: #ff7070;
+    --danger-contrast: #000000;
+    --warning: #ffd44d;
+    --warning-contrast: #000000;
+    --border: rgba(255, 255, 255, 0.85);
+    --glass: #000000;
+    --window-shadow: none;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg-primary);
+    color: var(--fg-primary);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    user-select: none;
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--fg-muted);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--fg-secondary);
+}
+
+html.high-contrast .window,
+html.high-contrast #taskbar,
+html.high-contrast #start-menu,
+html.high-contrast #context-menu,
+html.high-contrast #search-overlay,
+html.high-contrast .btn,
+html.high-contrast input,
+html.high-contrast textarea,
+html.high-contrast select {
+    border-color: var(--border) !important;
+    box-shadow: none !important;
+}
+
+html.high-contrast a {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+html.reduced-motion *,
+html.reduced-motion *::before,
+html.reduced-motion *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+@media (prefers-contrast: more), (forced-colors: active) {
+    :root {
+        --bg-primary: #000000;
+        --bg-secondary: #000000;
+        --bg-tertiary: #111111;
+        --fg-primary: #ffffff;
+        --fg-secondary: #ffffff;
+        --fg-muted: #e8e8e8;
+        --accent: #00ffff;
+        --accent-hover: #7fffff;
+        --accent-contrast: #000000;
+        --accent-glow: rgba(0, 255, 255, 0.45);
+        --danger: #ff7070;
+        --danger-contrast: #000000;
+        --warning: #ffd44d;
+        --warning-contrast: #000000;
+        --border: rgba(255, 255, 255, 0.85);
+        --glass: #000000;
+        --window-shadow: none;
+    }
+
+    *:focus-visible {
+        outline-width: 3px;
+    }
+}
+
+/* --- Focus styles for keyboard navigation --- */
+*:focus {
+    outline: none;
+}
+
+*:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Skip-to-content link for screen readers */
+.skip-link {
+    position: fixed;
+    top: -100px;
+    left: 8px;
+    z-index: 100001;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: top 0.15s ease;
+}
+
+.skip-link:focus {
+    top: 8px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.btn {
+    padding: 10px 24px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    background: var(--bg-secondary);
+    border-color: var(--accent);
+}
+
+.btn.primary {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border-color: var(--accent);
+}
+
+.btn.primary:hover {
+    background: var(--accent-hover);
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+}
+
+input, textarea, select {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.9rem;
+    color: var(--fg-primary);
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+}
+
+::placeholder {
+    color: var(--fg-muted);
+}
+
+/* --- Responsive Breakpoints --- */
+
+/* Small laptops / low resolution (1024px - 1279px) */
+@media (max-width: 1279px) {
+    :root {
+        --radius-sm: 4px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        font-size: 0.85rem;
+    }
+
+    input, textarea, select {
+        font-size: 0.85rem;
+        padding: 6px 10px;
+    }
+}
+
+/* Small laptops (1024px - 1279px) */
+@media (max-width: 1279px) and (min-width: 1024px) {
+    .btn {
+        padding: 8px 16px;
+        font-size: 0.85rem;
+    }
+
+    input, textarea, select {
+        font-size: 0.85rem;
+        padding: 8px 10px;
+    }
+}
+
+/* Standard desktop (1280px - 1439px) - default, no changes needed */
+
+/* Large desktop (1440px - 1919px) */
+@media (min-width: 1440px) and (max-width: 1919px) {
+    :root {
+        --radius-sm: 6px;
+        --radius-md: 10px;
+        --radius-lg: 14px;
+    }
+
+    .btn {
+        padding: 10px 22px;
+        font-size: 0.9rem;
+    }
+
+    input, textarea, select {
+        font-size: 0.9rem;
+        padding: 9px 12px;
+    }
+}
+
+/* Ultra-wide displays (1920px+) */
+@media (min-width: 1920px) {
+    :root {
+        --radius-sm: 8px;
+        --radius-md: 14px;
+        --radius-lg: 18px;
+    }
+
+    .btn {
+        padding: 12px 28px;
+        font-size: 0.95rem;
+    }
+
+    input, textarea, select {
+        font-size: 0.95rem;
+        padding: 10px 14px;
+    }
+}
+
+/* High DPI displays - ensure crisp rendering */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    * {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    svg {
+        shape-rendering: geometricPrecision;
+    }
+}
+
+/* --- Tablet Breakpoint (768px - 1023px) --- */
+@media (max-width: 1023px) and (min-width: 768px) and (pointer: coarse) {
+    /* Larger touch targets */
+    .btn {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 12px 20px;
+    }
+
+    .btn-sm {
+        min-height: 36px;
+        min-width: 36px;
+    }
+
+    input, textarea, select {
+        min-height: 44px;
+        font-size: 1rem;
+        padding: 10px 14px;
+    }
+
+    /* Touch-friendly focus states */
+    *:focus-visible {
+        outline-width: 3px;
+        outline-offset: 4px;
+    }
+}

@@ -1,0 +1,874 @@
+#taskbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: var(--glass);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    z-index: 9000;
+    min-width: 0;
+}
+
+#start-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, var(--accent), #00a8ff);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+#start-btn:hover,
+#start-btn:focus-visible {
+    transform: scale(1.08);
+    box-shadow: 0 0 20px var(--accent-glow);
+}
+
+#start-btn:focus-visible {
+    outline: 2px solid var(--fg-primary);
+    outline-offset: 2px;
+}
+
+#start-btn svg {
+    width: 24px;
+    height: 24px;
+    fill: var(--bg-primary);
+}
+
+#taskbar-apps {
+    display: flex;
+    gap: 6px;
+    margin-left: 16px;
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+#taskbar-apps::-webkit-scrollbar {
+    display: none;
+}
+
+#workspace-indicator.taskbar-workspace-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 12px;
+    padding: 0 6px;
+    flex-shrink: 0;
+    min-width: 0;
+}
+
+#workspace-indicator.taskbar-workspace-indicator .workspace-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 120px;
+    padding: 7px 9px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--fg-secondary);
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+#workspace-indicator.taskbar-workspace-indicator .workspace-dot:hover,
+#workspace-indicator.taskbar-workspace-indicator .workspace-dot:focus-visible {
+    border-color: var(--fg-muted);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+#workspace-indicator.taskbar-workspace-indicator .workspace-dot.active {
+    border-color: var(--accent);
+    background: rgba(0, 212, 170, 0.16);
+    box-shadow: 0 0 14px rgba(0, 212, 170, 0.24);
+}
+
+#workspace-indicator.taskbar-workspace-indicator .workspace-dot.drop-target {
+    border-color: var(--accent);
+    background: rgba(0, 212, 170, 0.24);
+}
+
+#workspace-indicator.taskbar-workspace-indicator .workspace-dot-name {
+    max-width: 72px;
+    font-size: 0.72rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#workspace-indicator.taskbar-workspace-indicator .workspace-dot-count {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    line-height: 18px;
+    text-align: center;
+    color: var(--fg-primary);
+    background: rgba(0, 0, 0, 0.28);
+}
+
+.taskbar-app {
+    width: 46px;
+    height: 46px;
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.taskbar-app:hover,
+.taskbar-app:focus-visible {
+    background: var(--bg-secondary);
+    border-color: var(--fg-muted);
+}
+
+.taskbar-app:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+.taskbar-app.active {
+    background: rgba(0, 212, 170, 0.15);
+    border-color: var(--accent);
+}
+
+.taskbar-app.active::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    width: 20px;
+    height: 3px;
+    background: var(--accent);
+    border-radius: 2px;
+}
+
+.taskbar-app.dirty::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 6px;
+    height: 6px;
+    background: var(--warning);
+    border-radius: 50%;
+}
+
+.taskbar-app.dragging {
+    opacity: 0.5;
+    transform: scale(0.92);
+}
+
+.taskbar-app svg {
+    width: 24px;
+    height: 24px;
+}
+
+#system-tray {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 12px;
+    flex-shrink: 0;
+}
+
+#clock {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--fg-primary);
+}
+
+#notification-bell {
+    position: relative;
+    cursor: pointer;
+    padding: 8px;
+    background: none;
+    border: none;
+    color: inherit;
+}
+
+#notification-bell svg {
+    width: 20px;
+    height: 20px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+#notification-bell:hover svg {
+    opacity: 1;
+}
+
+#notification-bell .badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    background: var(--danger);
+    border-radius: 50%;
+    display: none;
+}
+
+#notification-bell.has-notifications .badge {
+    display: block;
+}
+
+#start-menu {
+    position: fixed;
+    bottom: 68px;
+    left: 12px;
+    width: min(340px, calc(100vw - 24px));
+    max-height: min(480px, calc(100vh - 84px));
+    background: var(--glass);
+    backdrop-filter: blur(30px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    z-index: 9500;
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+    pointer-events: none;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--window-shadow);
+    display: flex;
+    flex-direction: column;
+}
+
+#start-menu.open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.start-menu-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+
+.start-menu-header h2 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), #00a8ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+#start-menu-apps {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    margin-right: -8px;
+    padding-right: 8px;
+}
+
+.start-menu-section {
+    margin-bottom: 12px;
+}
+
+.start-menu-section:last-child {
+    margin-bottom: 0;
+}
+
+.start-menu-section-title {
+    font-size: 0.65rem;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+    padding: 0 4px;
+}
+
+.start-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}
+
+.start-menu-app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 6px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.start-menu-app:hover,
+.start-menu-app:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--border);
+}
+
+.start-menu-app svg {
+    width: 28px;
+    height: 28px;
+}
+
+.start-menu-app span {
+    font-size: 0.65rem;
+    color: var(--fg-secondary);
+    text-align: center;
+    line-height: 1.2;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.start-menu-app.user-app {
+    background: rgba(0, 212, 170, 0.08);
+    border-color: rgba(0, 212, 170, 0.2);
+}
+
+.start-menu-app.user-app:hover {
+    background: rgba(0, 212, 170, 0.15);
+    border-color: var(--accent);
+}
+
+.start-menu-app.user-app span {
+    color: var(--accent);
+}
+
+.start-menu-section-title.collapsible {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding: 4px;
+    margin: -4px;
+    margin-bottom: 6px;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s ease;
+}
+
+.start-menu-section-title.collapsible:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.start-menu-section-title.collapsible span {
+    font-size: 0.75rem;
+    color: var(--fg-secondary);
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.start-menu-section-title.collapsible .collapse-arrow {
+    transition: transform 0.2s ease;
+}
+
+.start-menu-section-title.collapsible.collapsed .collapse-arrow {
+    transform: rotate(-90deg);
+}
+
+.start-menu-grid.collapsible-content {
+    max-height: 500px;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.2s ease;
+}
+
+.start-menu-grid.collapsible-content.collapsed {
+    max-height: 0;
+    opacity: 0;
+}
+
+/* --- Responsive Breakpoints for Taskbar --- */
+
+/* Small laptops (1024px - 1279px) */
+@media (max-width: 1279px) {
+    #taskbar {
+        height: 48px;
+        padding: 0 8px;
+    }
+
+    #start-btn {
+        width: 40px;
+        height: 40px;
+    }
+
+    #start-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    #taskbar-apps {
+        gap: 4px;
+        margin-left: 12px;
+    }
+
+    #workspace-indicator.taskbar-workspace-indicator {
+        gap: 4px;
+        margin-left: 8px;
+        padding: 0 2px;
+    }
+
+    #workspace-indicator.taskbar-workspace-indicator .workspace-dot {
+        padding: 6px 7px;
+        max-width: 92px;
+    }
+
+    #workspace-indicator.taskbar-workspace-indicator .workspace-dot-name {
+        max-width: 48px;
+        font-size: 0.68rem;
+    }
+
+    #workspace-indicator.taskbar-workspace-indicator .workspace-dot-count {
+        min-width: 16px;
+        height: 16px;
+        line-height: 16px;
+        font-size: 0.62rem;
+        padding: 0 4px;
+    }
+
+    .taskbar-app {
+        width: 40px;
+        height: 40px;
+    }
+
+    .taskbar-app svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .taskbar-app.active::after {
+        width: 16px;
+        height: 2px;
+        bottom: 3px;
+    }
+
+    #system-tray {
+        gap: 12px;
+        padding: 0 8px;
+    }
+
+    #clock {
+        font-size: 0.8rem;
+    }
+
+    #start-menu {
+        bottom: 56px;
+        left: 8px;
+        width: min(300px, calc(100vw - 16px));
+        max-height: min(400px, calc(100vh - 72px));
+    }
+
+    .start-menu-app {
+        padding: 8px 4px;
+    }
+
+    .start-menu-app svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .start-menu-app span {
+        font-size: 0.6rem;
+    }
+}
+
+/* Small laptops (1024px - 1279px) */
+@media (max-width: 1279px) and (min-width: 1024px) {
+    #taskbar {
+        height: 48px;
+        padding: 0 8px;
+    }
+
+    #start-btn {
+        width: 38px;
+        height: 38px;
+    }
+
+    #start-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    #taskbar-apps {
+        gap: 4px;
+        margin-left: 12px;
+    }
+
+    .taskbar-app {
+        width: 38px;
+        height: 38px;
+    }
+
+    .taskbar-app svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .taskbar-app.active::after {
+        width: 16px;
+        height: 3px;
+        bottom: 4px;
+    }
+
+    #system-tray {
+        gap: 14px;
+        padding: 0 10px;
+    }
+
+    #clock {
+        font-size: 0.75rem;
+    }
+
+    #start-menu {
+        width: min(320px, calc(100vw - 20px));
+        max-height: min(420px, calc(100vh - 76px));
+    }
+}
+
+/* Large desktop (1440px - 1919px) */
+@media (min-width: 1440px) and (max-width: 1919px) {
+    #taskbar {
+        height: 56px;
+        padding: 0 12px;
+    }
+
+    #start-btn {
+        width: 46px;
+        height: 46px;
+    }
+
+    #start-btn svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    #taskbar-apps {
+        gap: 6px;
+        margin-left: 16px;
+    }
+
+    .taskbar-app {
+        width: 46px;
+        height: 46px;
+    }
+
+    .taskbar-app svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .taskbar-app.active::after {
+        width: 20px;
+        height: 3px;
+        bottom: 5px;
+    }
+
+    #system-tray {
+        gap: 18px;
+        padding: 0 14px;
+    }
+
+    #clock {
+        font-size: 0.85rem;
+    }
+
+    #start-menu {
+        bottom: 60px;
+        width: min(420px, calc(100vw - 24px));
+        max-height: min(520px, calc(100vh - 88px));
+    }
+}
+
+/* Ultra-wide displays (1920px+) */
+@media (min-width: 1920px) {
+    #taskbar {
+        height: 64px;
+        padding: 0 16px;
+    }
+
+    #start-btn {
+        width: 52px;
+        height: 52px;
+    }
+
+    #start-btn svg {
+        width: 28px;
+        height: 28px;
+    }
+
+    #taskbar-apps {
+        gap: 8px;
+        margin-left: 20px;
+    }
+
+    .taskbar-app {
+        width: 52px;
+        height: 52px;
+    }
+
+    .taskbar-app svg {
+        width: 28px;
+        height: 28px;
+    }
+
+    .taskbar-app.active::after {
+        width: 24px;
+        height: 4px;
+        bottom: 6px;
+    }
+
+    #system-tray {
+        gap: 20px;
+        padding: 0 16px;
+    }
+
+    #clock {
+        font-size: 0.9rem;
+    }
+
+    #start-menu {
+        bottom: 76px;
+        left: 16px;
+        width: min(400px, calc(100vw - 32px));
+        max-height: min(560px, calc(100vh - 104px));
+    }
+
+    .start-menu-app {
+        padding: 12px 8px;
+    }
+
+    .start-menu-app svg {
+        width: 32px;
+        height: 32px;
+    }
+
+    .start-menu-app span {
+        font-size: 0.7rem;
+    }
+}
+
+/* --- Tablet Breakpoint (768px - 1023px) --- */
+@media (max-width: 1023px) and (min-width: 768px) and (pointer: coarse) {
+    /* Taller taskbar for touch */
+    #taskbar {
+        height: 64px;
+        padding: 0 12px;
+    }
+
+    /* Larger start button for touch */
+    #start-btn {
+        width: 52px;
+        height: 52px;
+    }
+
+    #start-btn svg {
+        width: 26px;
+        height: 26px;
+    }
+
+    #taskbar-apps {
+        gap: 8px;
+        margin-left: 16px;
+    }
+
+    #workspace-indicator.taskbar-workspace-indicator {
+        gap: 6px;
+        margin-left: 10px;
+        padding: 0 4px;
+    }
+
+    #workspace-indicator.taskbar-workspace-indicator .workspace-dot {
+        padding: 8px 9px;
+    }
+
+    #workspace-indicator.taskbar-workspace-indicator .workspace-dot-name {
+        max-width: 56px;
+    }
+
+    /* Larger taskbar app buttons for touch */
+    .taskbar-app {
+        width: 52px;
+        height: 52px;
+    }
+
+    .taskbar-app svg {
+        width: 26px;
+        height: 26px;
+    }
+
+    .taskbar-app.active::after {
+        width: 24px;
+        height: 3px;
+        bottom: 6px;
+    }
+
+    #system-tray {
+        gap: 16px;
+        padding: 0 12px;
+    }
+
+    #clock {
+        font-size: 0.9rem;
+    }
+
+    #notification-bell {
+        padding: 10px;
+    }
+
+    #notification-bell svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    #notification-bell .badge {
+        width: 10px;
+        height: 10px;
+    }
+
+    /* Start menu for tablet */
+    #start-menu {
+        bottom: 76px;
+        left: 12px;
+        width: min(340px, calc(100vw - 24px));
+        max-height: min(450px, calc(100vh - 96px));
+    }
+
+    .start-menu-app {
+        padding: 12px 8px;
+        min-height: 44px;
+    }
+
+    .start-menu-app svg {
+        width: 30px;
+        height: 30px;
+    }
+
+    .start-menu-app span {
+        font-size: 0.7rem;
+    }
+
+    .start-menu-section-title {
+        font-size: 0.7rem;
+        padding: 8px 4px;
+        min-height: 44px;
+    }
+}
+
+/* Compact desktop taskbar for zoomed/narrow fine-pointer environments. */
+@media (max-width: 1023px) and (min-width: 768px) and (pointer: fine) {
+    #taskbar {
+        height: 48px;
+        padding: 0 6px;
+    }
+
+    #start-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    #start-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    #taskbar-apps {
+        gap: 3px;
+        margin-left: 8px;
+    }
+
+    .taskbar-app {
+        width: 36px;
+        height: 36px;
+    }
+
+    .taskbar-app svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .taskbar-app.active::after {
+        width: 14px;
+        height: 2px;
+        bottom: 3px;
+    }
+
+    #workspace-indicator.taskbar-workspace-indicator {
+        gap: 4px;
+        margin-left: 6px;
+        padding: 0 2px;
+    }
+
+    #workspace-indicator.taskbar-workspace-indicator .workspace-dot {
+        min-width: 24px;
+        max-width: none;
+        padding: 5px 6px;
+        gap: 0;
+        border-radius: 8px;
+    }
+
+    #workspace-indicator.taskbar-workspace-indicator .workspace-dot-name {
+        display: none;
+    }
+
+    #workspace-indicator.taskbar-workspace-indicator .workspace-dot-count {
+        min-width: 14px;
+        height: 14px;
+        line-height: 14px;
+        font-size: 0.6rem;
+        padding: 0 3px;
+    }
+
+    #system-tray {
+        gap: 8px;
+        padding: 0 4px;
+    }
+
+    #clock {
+        display: none;
+    }
+
+    #notification-bell {
+        padding: 6px;
+    }
+
+    #notification-bell svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    #start-menu {
+        bottom: 54px;
+        left: 6px;
+        width: min(300px, calc(100vw - 12px));
+        max-height: min(360px, calc(100vh - 66px));
+    }
+
+    .start-menu-header h2 {
+        font-size: 1.1rem;
+    }
+
+    .start-menu-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

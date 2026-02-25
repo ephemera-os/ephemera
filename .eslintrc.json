@@ -1,0 +1,44 @@
+{
+  "env": {
+    "browser": true,
+    "es2022": true
+  },
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "globals": {
+    "EphemeraCrypto": "readonly",
+    "EphemeraSanitize": "readonly",
+    "EphemeraValidate": "readonly",
+    "EphemeraStorage": "readonly",
+    "EphemeraState": "readonly",
+    "EphemeraEvents": "readonly",
+    "EphemeraFS": "readonly",
+    "EphemeraNetwork": "readonly",
+    "EphemeraSession": "readonly",
+    "EphemeraLogin": "readonly",
+    "EphemeraApps": "readonly",
+    "EphemeraWM": "readonly",
+    "EphemeraBoot": "readonly",
+    "EphemeraNotifications": "readonly",
+    "EphemeraTelemetry": "readonly",
+    "EphemeraAI": "readonly",
+    "EphemeraShortcuts": "readonly",
+    "EphemeraFileAssoc": "readonly",
+    "EphemeraSounds": "readonly",
+    "EphemeraWidgets": "readonly",
+    "EphemeraDialogs": "readonly",
+    "EphemeraClipboard": "readonly",
+    "EphemeraDataManagement": "readonly"
+  },
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-console": "off",
+    "no-constant-condition": "warn",
+    "no-empty": "warn",
+    "prefer-const": "warn",
+    "no-var": "error"
+  },
+  "ignorePatterns": ["dist/", "node_modules/", "tests/"]
+}

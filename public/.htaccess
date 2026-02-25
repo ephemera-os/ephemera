@@ -1,0 +1,27 @@
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Serve existing files/folders directly.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # SPA fallback for client-side routes.
+    RewriteRule . index.html [L]
+</IfModule>
+
+<IfModule mod_mime.c>
+    AddType application/manifest+json .webmanifest
+    AddType application/wasm .wasm
+</IfModule>
+
+<IfModule mod_headers.c>
+    # Keep app shell + service worker fresh after deploys.
+    <FilesMatch "^(index\.html|sw\.js|manifest\.webmanifest)$">
+        Header always set Cache-Control "no-cache, no-store, must-revalidate"
+        Header always set Pragma "no-cache"
+        Header always set Expires "0"
+    </FilesMatch>
+</IfModule>

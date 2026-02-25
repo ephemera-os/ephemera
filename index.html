@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Ephemera - A browser-based operating system with virtual file system, app development, and AI integration">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta property="og:title" content="Ephemera 2.0">
+    <meta property="og:description" content="A browser-based operating system with virtual file system, app development, and AI integration">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="%BASE_URL%favicon.svg">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Ephemera 2.0">
+    <meta name="twitter:description" content="A browser-based operating system with virtual file system, app development, and AI integration">
+    <title>Ephemera 2.0</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" crossorigin="anonymous">
+    
+    <link rel="stylesheet" href="/css/core.css">
+    <link rel="stylesheet" href="/css/boot.css">
+    <link rel="stylesheet" href="/css/desktop.css">
+    <link rel="stylesheet" href="/css/taskbar.css">
+    <link rel="stylesheet" href="/css/windows.css">
+    <link rel="stylesheet" href="/css/mobile.css">
+    <link rel="stylesheet" href="/css/pwa.css">
+    <link rel="stylesheet" href="/css/apps.css">
+    <link rel="stylesheet" href="/css/command-palette.css">
+    
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg">
+    <link rel="manifest" href="%BASE_URL%manifest.webmanifest">
+    <link rel="apple-touch-icon" href="%BASE_URL%icons/icon-192.png">
+</head>
+<body>
+    <a class="skip-link" href="#desktop" data-i18n="desktop.skip_to_desktop">Skip to desktop</a>
+
+    <div id="boot-screen" role="status" aria-live="polite" aria-label="System boot" data-i18n-aria-label="desktop.system_boot">
+        <div class="boot-logo">Ephemera</div>
+        <div class="boot-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="boot-progress-bar" id="boot-progress-bar"></div>
+        </div>
+        <div class="boot-text" aria-live="polite" data-i18n="desktop.initializing_system">Initializing system...</div>
+    </div>
+
+    <main id="desktop" role="application" aria-label="Ephemera Desktop" data-i18n-aria-label="desktop.desktop">
+        <canvas id="wallpaper-canvas" aria-hidden="true"></canvas>
+        <div id="desktop-icons" role="grid" aria-label="Desktop icons" data-i18n-aria-label="desktop.desktop_icons"></div>
+    </main>
+
+    <div id="workspace-indicator" role="tablist" aria-label="Workspaces" data-i18n-aria-label="desktop.workspaces"></div>
+
+    <nav id="taskbar" role="toolbar" aria-label="Taskbar" data-i18n-aria-label="desktop.taskbar">
+        <button id="start-btn" aria-label="Start Menu" data-i18n-aria-label="desktop.start_menu" aria-haspopup="true" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+        </button>
+        <div id="taskbar-apps" role="group" aria-label="Open applications" data-i18n-aria-label="desktop.open_applications"></div>
+        <div id="system-tray" role="group" aria-label="System tray" data-i18n-aria-label="desktop.system_tray">
+            <button id="notification-bell" aria-label="Notifications" data-i18n-aria-label="desktop.notifications" aria-haspopup="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                <span class="badge" aria-hidden="true"></span>
+            </button>
+            <span id="clock" role="timer" aria-label="Current time" data-i18n-aria-label="desktop.current_time"></span>
+        </div>
+    </nav>
+
+    <div id="start-menu" role="menu" aria-label="Start menu" data-i18n-aria-label="desktop.start_menu">
+        <div class="start-menu-header">
+            <h2>Ephemera</h2>
+        </div>
+        <div id="start-menu-apps"></div>
+    </div>
+
+    <div id="context-menu" role="menu" aria-label="Context menu" data-i18n-aria-label="desktop.context_menu">
+        <div class="context-item" data-action="refresh" role="menuitem" tabindex="-1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a9 9 0 11-6.22-8.56"/><polyline points="21 3 21 9 15 9"/></svg>
+            <span data-i18n="desktop.context.refresh">Refresh</span>
+        </div>
+        <div class="context-item" data-action="appmanager" role="menuitem" tabindex="-1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <span data-i18n="desktop.context.app_manager">App Manager</span>
+        </div>
+        <div class="context-item" data-action="settings" role="menuitem" tabindex="-1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            <span data-i18n="desktop.context.settings">Settings</span>
+        </div>
+        <div class="context-divider" role="separator"></div>
+        <div class="context-item" data-action="terminal" role="menuitem" tabindex="-1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x="12" y1="19" x2="20" y2="19"/></svg>
+            <span data-i18n="desktop.context.open_terminal">Open Terminal</span>
+        </div>
+    </div>
+
+    <div id="search-overlay" role="dialog" aria-label="Search" data-i18n-aria-label="desktop.search" aria-modal="true">
+        <div id="search-box">
+            <input type="text" id="search-input" placeholder="Search apps, files, commands..." data-i18n-placeholder="desktop.search_placeholder" autocomplete="off" aria-label="Search" data-i18n-aria-label="desktop.search" role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list">
+            <div id="search-results" role="listbox" aria-label="Search results" data-i18n-aria-label="desktop.search_results"></div>
+        </div>
+    </div>
+
+    <div id="windows-container" aria-label="Application windows" data-i18n-aria-label="desktop.windows"></div>
+
+    <div aria-live="polite" aria-atomic="true" id="a11y-announcer" class="hidden" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);"></div>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>

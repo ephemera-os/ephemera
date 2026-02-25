@@ -1,0 +1,639 @@
+.window {
+    position: absolute;
+    min-width: 300px;
+    min-height: 240px;
+    max-width: calc(100vw - 12px);
+    max-height: calc(100vh - 64px);
+    background: var(--glass);
+    backdrop-filter: blur(30px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--window-shadow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 100;
+    animation: windowOpen 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.window.maximized {
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: calc(100vh - 56px) !important;
+    border-radius: 0;
+}
+
+.window.minimized {
+    transform: scale(0.8) translateY(100vh);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.window.snapped-left {
+    top: 0 !important;
+    left: 0 !important;
+    width: 50% !important;
+    height: calc(100vh - 56px) !important;
+    border-radius: 0;
+}
+
+.window.snapped-right {
+    top: 0 !important;
+    right: 0 !important;
+    left: auto !important;
+    width: 50% !important;
+    height: calc(100vh - 56px) !important;
+    border-radius: 0;
+}
+
+.window.snapped-tl {
+    top: 0 !important;
+    left: 0 !important;
+    width: 50% !important;
+    height: calc(50vh - 28px) !important;
+    border-radius: 0;
+}
+
+.window.snapped-tr {
+    top: 0 !important;
+    right: 0 !important;
+    left: auto !important;
+    width: 50% !important;
+    height: calc(50vh - 28px) !important;
+    border-radius: 0;
+}
+
+.window.snapped-bl {
+    bottom: 56px !important;
+    top: auto !important;
+    left: 0 !important;
+    width: 50% !important;
+    height: calc(50vh - 28px) !important;
+    border-radius: 0;
+}
+
+.window.snapped-br {
+    bottom: 56px !important;
+    top: auto !important;
+    right: 0 !important;
+    left: auto !important;
+    width: 50% !important;
+    height: calc(50vh - 28px) !important;
+    border-radius: 0;
+}
+
+@keyframes windowOpen {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.window-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid var(--border);
+    cursor: move;
+    flex-shrink: 0;
+}
+
+.window-title {
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    max-width: calc(100% - 84px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.window-title svg {
+    width: 16px;
+    height: 16px;
+}
+
+.window-controls {
+    display: flex;
+    gap: 8px;
+}
+
+html[dir="rtl"] .window-header {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .window-title {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .window-controls {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .window-resize {
+    right: auto;
+    left: 0;
+    cursor: nesw-resize;
+}
+
+.window-btn {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.window-btn:hover,
+.window-btn:focus-visible {
+    transform: scale(1.2);
+}
+
+.window-btn:focus-visible {
+    outline: 2px solid var(--fg-primary);
+    outline-offset: 2px;
+}
+
+.window-btn.close {
+    background: var(--danger);
+}
+
+.window-btn.minimize {
+    background: var(--warning);
+}
+
+.window-btn.maximize {
+    background: var(--accent);
+}
+
+.window-content {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+}
+
+.window-resize {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    cursor: nwse-resize;
+}
+
+.window-statusbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--fg-muted);
+}
+
+.window-tabbar {
+    display: flex;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+}
+
+.window-tab {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.window-tab:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.window-tab.active {
+    border-bottom-color: var(--accent);
+    color: var(--accent);
+}
+
+.window-tab .close-tab {
+    margin-left: 8px;
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+}
+
+.window-tab .close-tab:hover {
+    opacity: 1;
+}
+
+.window-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+}
+
+.window-toolbar .toolbar-btn {
+    padding: 6px 10px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--fg-secondary);
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.window-toolbar .toolbar-btn:hover,
+.window-toolbar .toolbar-btn:focus-visible {
+    background: var(--bg-secondary);
+    color: var(--fg-primary);
+}
+
+.window-toolbar .toolbar-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.window-toolbar .toolbar-separator {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+}
+
+.window-sidebar {
+    width: 200px;
+    max-width: 45vw;
+    background: rgba(0, 0, 0, 0.2);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.sidebar-item {
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.15s ease;
+}
+
+.sidebar-item:hover,
+.sidebar-item:focus-visible {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-item.active {
+    background: rgba(0, 212, 170, 0.1);
+    border-left: 2px solid var(--accent);
+}
+
+.sidebar-item svg {
+    width: 16px;
+    height: 16px;
+    opacity: 0.7;
+}
+
+.window-split {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.window-panel {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+    min-width: 0;
+}
+
+@keyframes modal-shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+}
+
+.modal-backdrop {
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* --- Responsive Breakpoints for Windows --- */
+
+/* Small laptops (1024px - 1279px) */
+@media (max-width: 1279px) {
+    .window {
+        min-width: 260px;
+        min-height: 200px;
+    }
+
+    .window-header {
+        height: 36px;
+        padding: 0 10px;
+    }
+
+    .window-title {
+        font-size: 0.8rem;
+    }
+
+    .window-btn {
+        width: 12px;
+        height: 12px;
+    }
+
+    .window-controls {
+        gap: 6px;
+    }
+
+    .window-content {
+        padding: 12px;
+    }
+
+    .window-sidebar {
+        width: 160px;
+    }
+
+    .sidebar-item {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Small laptops (1024px - 1279px) */
+@media (max-width: 1279px) and (min-width: 1024px) {
+    .window {
+        min-width: 280px;
+        min-height: 220px;
+    }
+
+    .window-header {
+        height: 36px;
+        padding: 0 10px;
+    }
+
+    .window-title {
+        font-size: 0.8rem;
+    }
+
+    .window-controls {
+        gap: 6px;
+    }
+
+    .window-btn {
+        width: 12px;
+        height: 12px;
+    }
+
+    .window-content {
+        padding: 12px;
+    }
+
+    .window-sidebar {
+        width: 180px;
+    }
+
+    .sidebar-item {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Large desktop (1440px - 1919px) */
+@media (min-width: 1440px) and (max-width: 1919px) {
+    .window {
+        min-width: 320px;
+        min-height: 260px;
+    }
+
+    .window-header {
+        height: 40px;
+        padding: 0 12px;
+    }
+
+    .window-title {
+        font-size: 0.85rem;
+    }
+
+    .window-controls {
+        gap: 8px;
+    }
+
+    .window-btn {
+        width: 14px;
+        height: 14px;
+    }
+
+    .window-content {
+        padding: 16px;
+    }
+
+    .window-sidebar {
+        width: 220px;
+    }
+
+    .sidebar-item {
+        padding: 10px 16px;
+        font-size: 0.85rem;
+    }
+}
+
+/* Ultra-wide displays (1920px+) */
+@media (min-width: 1920px) {
+    .window {
+        min-width: 340px;
+        min-height: 280px;
+    }
+
+    .window-header {
+        height: 44px;
+        padding: 0 14px;
+    }
+
+    .window-title {
+        font-size: 0.9rem;
+    }
+
+    .window-btn {
+        width: 16px;
+        height: 16px;
+    }
+
+    .window-controls {
+        gap: 10px;
+    }
+
+    .window-content {
+        padding: 20px;
+    }
+
+    .window-sidebar {
+        width: 240px;
+    }
+
+    .sidebar-item {
+        padding: 12px 18px;
+        font-size: 0.9rem;
+    }
+}
+
+/* --- Tablet Breakpoint (768px - 1023px) --- */
+@media (max-width: 1023px) and (min-width: 768px) and (pointer: coarse) {
+    .window {
+        min-width: 280px;
+        min-height: 220px;
+    }
+
+    /* Enable smooth pointer-based two-finger drag/pinch on tablet headers */
+    .window-header {
+        touch-action: none;
+    }
+
+    /* Larger window header for touch */
+    .window-header {
+        height: 48px;
+        padding: 0 14px;
+    }
+
+    .window-title {
+        font-size: 0.9rem;
+    }
+
+    /* Larger window controls for touch */
+    .window-btn {
+        width: 18px;
+        height: 18px;
+    }
+
+    .window-controls {
+        gap: 12px;
+    }
+
+    .window-content {
+        padding: 16px;
+    }
+
+    /* Touch-friendly toolbar buttons */
+    .window-toolbar .toolbar-btn {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 10px 14px;
+        font-size: 0.85rem;
+    }
+
+    /* Touch-friendly sidebar */
+    .window-sidebar {
+        width: 180px;
+    }
+
+    .sidebar-item {
+        padding: 14px 16px;
+        font-size: 0.85rem;
+        min-height: 44px;
+    }
+
+    /* Touch-friendly tabs */
+    .window-tab {
+        padding: 12px 18px;
+        font-size: 0.85rem;
+        min-height: 44px;
+    }
+
+    /* Touch-friendly status bar */
+    .window-statusbar {
+        padding: 10px 14px;
+        font-size: 0.8rem;
+        min-height: 36px;
+    }
+
+    /* Larger resize handle for touch */
+    .window-resize {
+        width: 28px;
+        height: 28px;
+    }
+}
+
+/* Compact desktop windows for zoomed/narrow fine-pointer environments. */
+@media (max-width: 1023px) and (min-width: 768px) and (pointer: fine) {
+    .window {
+        min-width: 260px;
+        min-height: 180px;
+        max-width: calc(100vw - 8px);
+        max-height: calc(100vh - 54px);
+    }
+
+    .window-header {
+        height: 34px;
+        padding: 0 8px;
+    }
+
+    .window-title {
+        font-size: 0.78rem;
+        max-width: calc(100% - 72px);
+        gap: 6px;
+    }
+
+    .window-controls {
+        gap: 5px;
+    }
+
+    .window-btn {
+        width: 11px;
+        height: 11px;
+    }
+
+    .window-content {
+        padding: 10px;
+    }
+
+    .window-toolbar {
+        gap: 6px;
+        padding: 6px 8px;
+    }
+
+    .window-toolbar .toolbar-btn {
+        padding: 5px 8px;
+        font-size: 0.75rem;
+    }
+
+    .window-sidebar {
+        width: min(140px, 40%);
+    }
+
+    .sidebar-item {
+        padding: 7px 10px;
+        font-size: 0.75rem;
+    }
+
+    .window-statusbar {
+        padding: 5px 8px;
+        font-size: 0.7rem;
+    }
+}
