@@ -15,7 +15,7 @@ A browser-based operating system with virtual file system, app development platf
 - 🔐 **Security** - PBKDF2 passwords, AES-256-GCM encryption
 - 🎨 **Customizable** - Themes, accent colors, wallpapers
 - 📦 **App Platform** - Build and install custom apps
-- 🤖 **AI Integration** - OpenRouter-powered code assistance
+- 🤖 **AI Integration** - Multi-provider AI (OpenRouter, OpenAI, Anthropic, Google, ChatGPT Plus/Pro)
 - ☁️ **Cloud Sync** - Self-hosted REST sync server for cross-device file sync
 - 💾 **Profile Export/Import** - Encrypted `.ephx` exports protected by a passphrase
 
@@ -76,7 +76,8 @@ ephemera/
 │   │   ├── login.js        # Local accounts & authentication
 │   │   ├── session.js      # Session management
 │   │   ├── network.js      # HTTP client
-│   │   ├── ai.js           # AI integration
+│   │   ├── ai.js           # AI integration (multi-provider)
+│   │   ├── ai-oauth.js     # OAuth for AI subscriptions (ChatGPT Plus/Pro)
 │   │   ├── sync-rest.js    # REST sync provider
 │   │   ├── sync-manager.js # Sync orchestrator
 │   │   └── data-management.js # Backup & profile export/import
@@ -93,7 +94,7 @@ ephemera/
 
 ### Environment Variables (optional)
 
-Create `.env.local` for error tracking:
+Create `.env.local` for error tracking and ChatGPT OAuth:
 
 ```bash
 # Error Tracking (optional)
@@ -101,6 +102,13 @@ VITE_SENTRY_DSN=https://key@sentry.io/project
 VITE_SENTRY_ENVIRONMENT=development
 # Release label included in Sentry events (defaults to app version)
 VITE_SENTRY_RELEASE=2.0.0-local
+
+# ChatGPT Plus/Pro OAuth (optional - requires Vercel for serverless functions)
+VITE_OPENAI_OAUTH_CLIENT_ID=your-client-id
+VITE_APP_URL=https://your-domain.com
+# Server-side only (set in Vercel environment, not in .env.local)
+# OPENAI_OAUTH_CLIENT_ID=your-client-id
+# OPENAI_OAUTH_CLIENT_SECRET=your-client-secret
 ```
 
 ### CI Sourcemap Upload (Sentry)
@@ -210,4 +218,5 @@ Bundled third-party assets are documented in [THIRD_PARTY_NOTICES.md](THIRD_PART
 
 - [CodeMirror](https://codemirror.net/) - Code editor
 - [OpenRouter](https://openrouter.ai/) - AI API
+- [OpenAI](https://openai.com/) - AI API & ChatGPT OAuth
 - [Sentry](https://sentry.io/) - Error tracking

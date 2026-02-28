@@ -518,13 +518,14 @@ function renderAISection(windowId) {
                     <option value="openai" ${provider === 'openai' ? 'selected' : ''}>OpenAI</option>
                     <option value="anthropic" ${provider === 'anthropic' ? 'selected' : ''}>Anthropic</option>
                     <option value="google" ${provider === 'google' ? 'selected' : ''}>Google AI</option>
+                    <option value="chatgpt" ${provider === 'chatgpt' ? 'selected' : ''}>ChatGPT Plus/Pro</option>
                 </select>
             </div>
             
-            <div class="settings-row" style="flex-direction:column;align-items:stretch;">
+            <div id="ai-apikey-section-${windowId}" class="settings-row" style="flex-direction:column;align-items:stretch;">
                 <div class="settings-row-label" id="ai-key-label-${windowId}" style="margin-bottom:8px;">${providerKeyLabel}</div>
                 <div style="display:flex;gap:8px;">
-                    <input type="password" id="ai-key-${windowId}" 
+                    <input type="password" id="ai-key-${windowId}"
                         value=""
                         placeholder="${providerKeyPlaceholder}"
                         style="flex:1;">
@@ -535,7 +536,19 @@ function renderAISection(windowId) {
                     <span id="ai-key-hint-${windowId}" style="color:var(--fg-muted);font-size:0.78rem;">${providerKeyHint}</span>
                 </div>
             </div>
-            
+
+            <div id="ai-oauth-section-${windowId}" class="settings-row" style="flex-direction:column;align-items:stretch;display:none;">
+                <div class="settings-row-label" style="margin-bottom:8px;">ChatGPT Account</div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <button class="btn" id="ai-oauth-login-${windowId}" style="flex:0 0 auto;">Login with ChatGPT</button>
+                    <button class="btn btn-sm" id="ai-oauth-disconnect-${windowId}" style="flex:0 0 auto;display:none;">Disconnect</button>
+                </div>
+                <div class="settings-row-desc" style="margin-top:8px;">
+                    <span id="ai-oauth-status-${windowId}" style="color:var(--fg-secondary);">Not connected</span><br>
+                    <span style="color:var(--fg-muted);font-size:0.78rem;">Use your ChatGPT Plus or Pro subscription instead of a pay-per-use API key</span>
+                </div>
+            </div>
+
             <div class="settings-row" style="flex-direction:column;align-items:stretch;margin-top:16px;">
                 <div class="settings-row-label" style="margin-bottom:8px;">Default Model</div>
                 <div style="display:flex;gap:8px;align-items:center;">
@@ -1751,6 +1764,11 @@ function initSectionHandlers(section, windowId, lifecycle) {
         const keyLabel = document.getElementById(`ai-key-label-${windowId}`);
         const keyStatus = document.getElementById(`ai-key-status-${windowId}`);
         const keyHint = document.getElementById(`ai-key-hint-${windowId}`);
+        const apiKeySection = document.getElementById(`ai-apikey-section-${windowId}`);
+        const oauthSection = document.getElementById(`ai-oauth-section-${windowId}`);
+        const oauthLoginBtn = document.getElementById(`ai-oauth-login-${windowId}`);
+        const oauthDisconnectBtn = document.getElementById(`ai-oauth-disconnect-${windowId}`);
+        const oauthStatusEl = document.getElementById(`ai-oauth-status-${windowId}`);
         const modelSelectDefault = document.getElementById(`ai-model-default-${windowId}`);
         const modelSelectChat = document.getElementById(`ai-model-chat-${windowId}`);
         const modelSelectCode = document.getElementById(`ai-model-code-${windowId}`);
@@ -1777,7 +1795,8 @@ function initSectionHandlers(section, windowId, lifecycle) {
             openrouter: { setting: 'openrouterApiKey', label: 'OpenRouter API Key', placeholder: 'sk-or-...', name: 'OpenRouter', hint: 'Get key from openrouter.ai/keys' },
             openai: { setting: 'openaiApiKey', label: 'OpenAI API Key', placeholder: 'sk-...', name: 'OpenAI', hint: 'Get key from platform.openai.com/api-keys' },
             anthropic: { setting: 'anthropicApiKey', label: 'Anthropic API Key', placeholder: 'sk-ant-...', name: 'Anthropic', hint: 'Get key from console.anthropic.com/settings/keys' },
-            google: { setting: 'googleApiKey', label: 'Google AI API Key', placeholder: 'AIza...', name: 'Google AI', hint: 'Get key from aistudio.google.com/app/apikey' }
+            google: { setting: 'googleApiKey', label: 'Google AI API Key', placeholder: 'AIza...', name: 'Google AI', hint: 'Get key from aistudio.google.com/app/apikey' },
+            chatgpt: { setting: null, label: 'ChatGPT Plus/Pro', placeholder: '', name: 'ChatGPT Plus/Pro', hint: '', authType: 'oauth', oauthProvider: 'chatgpt' }
         };
 
         const modelSelectMap = {
@@ -1808,6 +1827,31 @@ function initSectionHandlers(section, windowId, lifecycle) {
             return providerMeta[getActiveProvider()] || providerMeta.openrouter;
         }
 
+        function isOAuthProvider(provider) {
+            const meta = providerMeta[provider];
+            return meta?.authType === 'oauth';
+        }
+
+        function updateOAuthStatus() {
+            if (!oauthStatusEl) return;
+            const provider = getActiveProvider();
+            const meta = getActiveMeta();
+            if (!isOAuthProvider(provider)) return;
+            const status = window.EphemeraAIOAuth?.getStatus?.(meta.oauthProvider) || { connected: false };
+            if (status.connected) {
+                const userName = status.user?.name || status.user?.email || 'Connected';
+                oauthStatusEl.innerHTML = `<span style="color:var(--accent);">${EphemeraSanitize.escapeHtml(userName)}</span>`;
+                if (oauthLoginBtn) oauthLoginBtn.style.display = 'none';
+                if (oauthDisconnectBtn) oauthDisconnectBtn.style.display = '';
+                testBtn.disabled = false;
+            } else {
+                oauthStatusEl.innerHTML = '<span style="color:var(--fg-secondary);">Not connected</span>';
+                if (oauthLoginBtn) oauthLoginBtn.style.display = '';
+                if (oauthDisconnectBtn) oauthDisconnectBtn.style.display = 'none';
+                testBtn.disabled = true;
+            }
+        }
+
         function updateUsageUi() {
             if (typeof EphemeraAI.getSessionUsage !== 'function') return;
             const usage = EphemeraAI.getSessionUsage();
@@ -1819,6 +1863,16 @@ function initSectionHandlers(section, windowId, lifecycle) {
         async function syncProviderField() {
             const provider = getActiveProvider();
             const meta = getActiveMeta();
+            const oauth = isOAuthProvider(provider);
+
+            if (apiKeySection) apiKeySection.style.display = oauth ? 'none' : '';
+            if (oauthSection) oauthSection.style.display = oauth ? '' : 'none';
+
+            if (oauth) {
+                updateOAuthStatus();
+                return;
+            }
+
             if (keyLabel) keyLabel.textContent = meta.label;
             if (keyHint) keyHint.textContent = meta.hint || '';
             if (keyInput) keyInput.placeholder = meta.placeholder;
@@ -1853,6 +1907,37 @@ function initSectionHandlers(section, windowId, lifecycle) {
         async function loadModels(forceRefresh = false) {
             const provider = getActiveProvider();
             const meta = getActiveMeta();
+            const oauth = isOAuthProvider(provider);
+
+            if (oauth) {
+                const connected = window.EphemeraAIOAuth?.isConnected?.(meta.oauthProvider);
+                if (!connected) {
+                    modelsStatus.textContent = 'Log in to load models';
+                    modelsStatus.style.color = 'var(--fg-muted)';
+                    await populateAllModelSelects(provider, false);
+                    return;
+                }
+
+                modelsStatus.textContent = 'Loading models...';
+                modelsStatus.style.color = 'var(--fg-muted)';
+                refreshBtn.disabled = true;
+
+                try {
+                    const models = await EphemeraAI.getModels(forceRefresh, provider);
+                    await populateAllModelSelects(provider, false);
+                    modelsStatus.textContent = models.length > 0
+                        ? `${models.length} models loaded`
+                        : 'No models found; using fallback defaults';
+                    modelsStatus.style.color = models.length > 0 ? 'var(--accent)' : 'var(--warning)';
+                } catch (e) {
+                    modelsStatus.textContent = 'Failed to load models: ' + e.message;
+                    modelsStatus.style.color = 'var(--danger)';
+                } finally {
+                    refreshBtn.disabled = false;
+                }
+                return;
+            }
+
             const tempKey = keyInput.value.trim();
             const originalEncrypted = EphemeraState.settings[meta.setting] || '';
 
@@ -1914,15 +1999,55 @@ function initSectionHandlers(section, windowId, lifecycle) {
 
         lifecycle.addListener(refreshBtn, 'click', () => loadModels(true));
 
+        if (oauthLoginBtn) {
+            lifecycle.addListener(oauthLoginBtn, 'click', async () => {
+                const provider = getActiveProvider();
+                const meta = getActiveMeta();
+                if (!isOAuthProvider(provider)) return;
+                oauthLoginBtn.disabled = true;
+                try {
+                    await window.EphemeraAIOAuth.connect(meta.oauthProvider);
+                    updateOAuthStatus();
+                    await loadModels(true);
+                } catch (e) {
+                    if (window.EphemeraNotifications) {
+                        window.EphemeraNotifications.error('OAuth Login Failed', e.message || 'Could not connect.');
+                    }
+                } finally {
+                    oauthLoginBtn.disabled = false;
+                }
+            });
+        }
+
+        if (oauthDisconnectBtn) {
+            lifecycle.addListener(oauthDisconnectBtn, 'click', async () => {
+                const provider = getActiveProvider();
+                const meta = getActiveMeta();
+                if (!isOAuthProvider(provider)) return;
+                await window.EphemeraAIOAuth.disconnect(meta.oauthProvider);
+                updateOAuthStatus();
+            });
+        }
+
+        lifecycle.addSubscription(EphemeraEvents.on('ai:oauth:updated', () => {
+            if (isOAuthProvider(getActiveProvider())) {
+                updateOAuthStatus();
+            }
+        }));
+
         lifecycle.addListener(saveBtn, 'click', async () => {
             const provider = getActiveProvider();
             const meta = getActiveMeta();
-            const key = keyInput.value.trim();
             const maxTokens = parseInt(maxTokensInput?.value || 8192);
             const temperature = parseFloat(temperatureInput?.value || 0.7);
 
             EphemeraState.updateSetting('aiProvider', provider);
-            await EphemeraAI.setApiKey(key, provider);
+
+            if (!isOAuthProvider(provider)) {
+                const key = keyInput.value.trim();
+                await EphemeraAI.setApiKey(key, provider);
+                testBtn.disabled = !key;
+            }
 
             for (const [useCase, selectEl] of Object.entries(modelSelectMap)) {
                 if (!selectEl) continue;
@@ -1932,19 +2057,45 @@ function initSectionHandlers(section, windowId, lifecycle) {
             EphemeraState.updateSetting('aiMaxTokens', maxTokens);
             EphemeraState.updateSetting('aiTemperature', temperature);
 
-            testBtn.disabled = !key;
-
             EphemeraNotifications.success('AI Settings Saved', `${meta.name} configuration updated.`);
         });
 
         lifecycle.addListener(testBtn, 'click', async () => {
             const provider = getActiveProvider();
             const meta = getActiveMeta();
-            const tempKey = keyInput.value.trim();
+            const oauth = isOAuthProvider(provider);
             testResult.style.display = 'block';
             testResult.style.background = 'rgba(0,0,0,0.2)';
             testResult.innerHTML = '<span style="color:var(--fg-muted);">Testing connection...</span>';
 
+            if (oauth) {
+                const connected = window.EphemeraAIOAuth?.isConnected?.(meta.oauthProvider);
+                if (!connected) {
+                    testResult.style.background = 'rgba(255,77,106,0.1)';
+                    testResult.innerHTML = '<span style="color:var(--danger);">Not connected</span><br><span style="font-size:0.85rem;color:var(--fg-secondary);">Please log in first.</span>';
+                    return;
+                }
+
+                try {
+                    const response = await EphemeraAI.chat(
+                        [{ role: 'user', content: 'Reply with exactly: Connection OK' }],
+                        modelSelectDefault.value || EphemeraAI.getDefaultModel(provider),
+                        null,
+                        { provider, useCase: 'default' }
+                    );
+
+                    testResult.style.background = 'rgba(0,212,170,0.1)';
+                    testResult.innerHTML = `<span style="color:var(--accent);">Connected</span><br><span style="font-size:0.85rem;color:var(--fg-secondary);">Response: ${EphemeraSanitize.escapeHtml(response)}</span>`;
+                } catch (e) {
+                    testResult.style.background = 'rgba(255,77,106,0.1)';
+                    testResult.innerHTML = `<span style="color:var(--danger);">Connection failed</span><br><span style="font-size:0.85rem;color:var(--fg-secondary);">${e.message}</span>`;
+                } finally {
+                    updateUsageUi();
+                }
+                return;
+            }
+
+            const tempKey = keyInput.value.trim();
             if (!tempKey) {
                 testResult.style.background = 'rgba(255,77,106,0.1)';
                 testResult.innerHTML = '<span style="color:var(--danger);">Connection failed</span><br><span style="font-size:0.85rem;color:var(--fg-secondary);">API key is required.</span>';

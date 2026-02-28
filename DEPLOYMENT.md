@@ -26,6 +26,7 @@ None. Ephemera is a static browser application with local profiles.
 Optional:
 - **Error Tracking**: [Sentry](https://sentry.io/) (if you want error monitoring)
 - **Cloud Sync**: self-host the sync server in `server/` (if you want cross-device sync)
+- **ChatGPT OAuth**: an OpenAI OAuth application (if you want users to log in with their ChatGPT Plus/Pro subscription)
 
 ### Local Requirements
 
@@ -53,6 +54,26 @@ cp .env.example .env.local
 VITE_SENTRY_DSN=https://your-key@o123456.ingest.sentry.io/1234567
 VITE_SENTRY_ENVIRONMENT=production
 ```
+
+### 3. Configure ChatGPT OAuth (Optional)
+
+This enables the "ChatGPT Plus/Pro" provider, which lets users authenticate with their OpenAI account and use their subscription instead of a pay-per-use API key. The OAuth token exchange requires a `client_secret`, so it is handled by Vercel serverless functions in `api/ai-oauth/`.
+
+1. Register an OAuth application with OpenAI
+2. Set the redirect URI to `https://your-domain.com/api/ai-oauth/callback`
+3. Add the following environment variables:
+
+```bash
+# Client-side (.env.local or hosting env vars)
+VITE_OPENAI_OAUTH_CLIENT_ID=your-openai-client-id
+VITE_APP_URL=https://your-domain.com
+
+# Server-side only (Vercel environment variables — never in .env.local)
+OPENAI_OAUTH_CLIENT_ID=your-openai-client-id
+OPENAI_OAUTH_CLIENT_SECRET=your-openai-client-secret
+```
+
+> **Note**: The serverless functions in `api/ai-oauth/` are designed for Vercel. If you deploy elsewhere (Netlify, VPS), you'll need to adapt them to your platform's serverless/function format or run them as a small Express server.
 
 ---
 
@@ -107,6 +128,10 @@ When prompted:
 # Optional (Sentry)
 netlify env:set VITE_SENTRY_DSN "your-sentry-dsn"
 netlify env:set VITE_SENTRY_ENVIRONMENT "production"
+
+# Optional (ChatGPT OAuth — see "Configure ChatGPT OAuth" above)
+# netlify env:set VITE_OPENAI_OAUTH_CLIENT_ID "your-client-id"
+# netlify env:set VITE_APP_URL "https://your-domain.com"
 ```
 
 Or set them in the Netlify dashboard:
@@ -557,6 +582,7 @@ curl -H "Authorization: Bearer your-token" http://localhost:3001/api/ping
 - [ ] Verify HTTPS is working (green lock icon)
 - [ ] Test file creation and saving
 - [ ] Test AI features (if API key configured)
+- [ ] Test ChatGPT OAuth login/disconnect (if OAuth configured)
 - [ ] Check browser console for errors
 - [ ] Verify CSP headers are not blocking resources
 

@@ -30,6 +30,14 @@ const EphemeraAI = {
             name: 'Google AI',
             apiKeySetting: 'googleApiKey',
             defaultModel: 'gemini-2.0-flash'
+        },
+        chatgpt: {
+            id: 'chatgpt',
+            name: 'ChatGPT Plus/Pro',
+            apiKeySetting: null,
+            defaultModel: 'gpt-4o',
+            authType: 'oauth',
+            oauthProvider: 'chatgpt'
         }
     },
 
@@ -65,6 +73,11 @@ const EphemeraAI = {
             { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
             { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
             { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' }
+        ],
+        chatgpt: [
+            { id: 'gpt-4o', name: 'GPT-4o' },
+            { id: 'gpt-4o-mini', name: 'GPT-4o mini' },
+            { id: 'o3-mini', name: 'o3-mini' }
         ]
     },
 
@@ -85,7 +98,8 @@ const EphemeraAI = {
         openrouter: { prompt: 1.5 / 1000000, completion: 3.0 / 1000000 },
         openai: { prompt: 1.0 / 1000000, completion: 3.0 / 1000000 },
         anthropic: { prompt: 3.0 / 1000000, completion: 15.0 / 1000000 },
-        google: { prompt: 0.35 / 1000000, completion: 0.53 / 1000000 }
+        google: { prompt: 0.35 / 1000000, completion: 0.53 / 1000000 },
+        chatgpt: { prompt: 0, completion: 0 }
     },
 
     // Rate limiting configuration
@@ -279,6 +293,7 @@ const EphemeraAI = {
     async migrateKeyIfNeeded() {
         if (!window.EphemeraState) return;
         for (const cfg of Object.values(this.PROVIDERS)) {
+            if (cfg.authType === 'oauth') continue;
             const settingKey = cfg.apiKeySetting;
             const raw = String(this._getSettings()[settingKey] || '');
             if (!raw || raw.startsWith('enc:')) continue;
@@ -292,6 +307,10 @@ const EphemeraAI = {
     },
 
     async getApiKey(provider = null) {
+        const cfg = this._getProviderConfig(provider);
+        if (cfg.authType === 'oauth') {
+            return window.EphemeraAIOAuth?.getAccessToken?.(cfg.oauthProvider) || '';
+        }
         const settingKey = this._getApiKeySetting(provider);
         const stored = String(this._getSettings()[settingKey] || '');
         return await this.decryptKey(stored);
@@ -299,6 +318,8 @@ const EphemeraAI = {
 
     async setApiKey(key, provider = null) {
         const targetProvider = this._normalizeProvider(provider || this.getProvider());
+        const cfg = this._getProviderConfig(targetProvider);
+        if (cfg.authType === 'oauth') return;
         const settingKey = this._getApiKeySetting(targetProvider);
         const encrypted = await this.encryptKey(String(key || '').trim());
         if (window.EphemeraState) {
@@ -315,6 +336,10 @@ const EphemeraAI = {
     },
 
     async isConfigured(provider = null) {
+        const cfg = this._getProviderConfig(provider);
+        if (cfg.authType === 'oauth') {
+            return window.EphemeraAIOAuth?.isConnected?.(cfg.oauthProvider) || false;
+        }
         const key = await this.getApiKey(provider);
         return !!key;
     },
@@ -461,7 +486,7 @@ const EphemeraAI = {
                     name: m.name || m.id,
                     context: m.context_length
                 }));
-            } else if (targetProvider === 'openai') {
+            } else if (targetProvider === 'openai' || targetProvider === 'chatgpt') {
                 const response = await fetch('https://api.openai.com/v1/models', {
                     headers: { 'Authorization': `Bearer ${apiKey}` }
                 });
@@ -609,7 +634,7 @@ const EphemeraAI = {
 
     _providerSupportsNativeStreaming(provider) {
         const target = this._normalizeProvider(provider);
-        return target === 'openrouter' || target === 'openai';
+        return target === 'openrouter' || target === 'openai' || target === 'chatgpt';
     },
 
     _buildOpenAICompatibleRequestBody(model, messages, stream) {
@@ -708,7 +733,7 @@ const EphemeraAI = {
             };
         }
 
-        if (targetProvider === 'openai') {
+        if (targetProvider === 'openai' || targetProvider === 'chatgpt') {
             return {
                 url: 'https://api.openai.com/v1/chat/completions',
                 options: {
@@ -761,7 +786,7 @@ const EphemeraAI = {
         const targetProvider = this._normalizeProvider(provider);
         if (!payload || typeof payload !== 'object') return '';
 
-        if (targetProvider === 'openrouter' || targetProvider === 'openai') {
+        if (targetProvider === 'openrouter' || targetProvider === 'openai' || targetProvider === 'chatgpt') {
             const content = payload.choices?.[0]?.message?.content;
             return this._extractTextFromOpenAIContent(content);
         }
@@ -803,7 +828,7 @@ const EphemeraAI = {
             return {};
         }
 
-        if (targetProvider === 'openrouter' || targetProvider === 'openai') {
+        if (targetProvider === 'openrouter' || targetProvider === 'openai' || targetProvider === 'chatgpt') {
             return {
                 promptTokens: Number(payload.usage?.prompt_tokens || 0),
                 completionTokens: Number(payload.usage?.completion_tokens || 0),
@@ -951,7 +976,11 @@ const EphemeraAI = {
         const { provider, model: resolvedModel } = this._resolveRequestProviderAndModel(model, options || {});
         const apiKey = await this.getApiKey(provider);
         if (!apiKey) {
-            throw new Error(`${this._providerDisplayName(provider)} API key not configured. Please add it in Settings.`);
+            const cfg = this._getProviderConfig(provider);
+            const hint = cfg.authType === 'oauth'
+                ? `${this._providerDisplayName(provider)} is not connected. Please log in via Settings.`
+                : `${this._providerDisplayName(provider)} API key not configured. Please add it in Settings.`;
+            throw new Error(hint);
         }
 
         const wantsStream = typeof onStream === 'function';

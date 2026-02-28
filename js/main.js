@@ -33,6 +33,10 @@ async function initEphemera() {
     if (window.EphemeraOAuth) {
         window.EphemeraOAuth.init();
     }
+
+    if (window.EphemeraAIOAuth) {
+        window.EphemeraAIOAuth.init();
+    }
     
     if (window.EphemeraBoot) {
         await window.EphemeraBoot.start();

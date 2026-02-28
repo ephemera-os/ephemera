@@ -18,6 +18,7 @@ const EphemeraStorage = {
         'anthropicApiKey',
         'googleApiKey',
         'oauth_tokens',
+        'ai_oauth_tokens',
         'autosave:code',
         'ephemera_aichat',
         'syncRestToken'

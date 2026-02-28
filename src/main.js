@@ -24,6 +24,7 @@ import '../js/system/dialogs.js';
 import '../js/system/terminal-backend.js';
 import '../js/system/ai.js';
 import '../js/system/ai-stream-worker.js';
+import '../js/system/ai-oauth.js';
 import '../js/system/ai-assistant.js';
 import '../js/system/crypto-worker.js';
 import '../js/system/export-worker.js';
