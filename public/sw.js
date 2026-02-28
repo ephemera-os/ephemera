@@ -115,7 +115,8 @@ self.addEventListener('install', (event) => {
             }
         })
     );
-    self.skipWaiting();
+    // Activation is user-driven via postMessage('skipWaiting') to avoid
+    // interrupting active sessions with an unsolicited reload.
 });
 
 self.addEventListener('activate', (event) => {

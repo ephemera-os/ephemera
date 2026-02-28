@@ -113,40 +113,56 @@ function initServiceWorker() {
 
     const baseUrl = import.meta.env?.BASE_URL || '/';
     const swUrl = `${baseUrl}sw.js`;
+    let reloadForServiceWorkerUpdate = false;
+    let didReloadForServiceWorkerUpdate = false;
+
+    const requestServiceWorkerActivation = (worker) => {
+        if (!worker || typeof worker.postMessage !== 'function') return;
+        reloadForServiceWorkerUpdate = true;
+        worker.postMessage('skipWaiting');
+    };
+
+    const notifyUpdateAvailable = (worker) => {
+        if (!worker || !navigator.serviceWorker.controller) return;
+        console.info('[Ephemera] New version available. Refresh to update.');
+
+        if (window.EphemeraNotifications) {
+            EphemeraNotifications.show({
+                title: 'Update Available',
+                message: 'A new version of Ephemera is ready.',
+                type: 'info',
+                duration: 0, // Don't auto-dismiss
+                actions: [{
+                    label: 'Refresh Now',
+                    primary: true,
+                    onClick: () => requestServiceWorkerActivation(worker)
+                }]
+            });
+        }
+    };
 
     navigator.serviceWorker.register(swUrl, { scope: baseUrl })
         .then((registration) => {
             console.info('[Ephemera] Service Worker registered:', registration.scope);
 
+            // If a worker is already waiting, surface the update prompt now.
+            notifyUpdateAvailable(registration.waiting);
+
             // Handle updates
             registration.addEventListener('updatefound', () => {
                 const newWorker = registration.installing;
+                if (!newWorker) return;
                 newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        console.info('[Ephemera] New version available. Refresh to update.');
-
-                        // Show user-facing notification with refresh action
-                        if (window.EphemeraNotifications) {
-                            EphemeraNotifications.show({
-                                title: 'Update Available',
-                                message: 'A new version of Ephemera is ready.',
-                                type: 'info',
-                                duration: 0, // Don't auto-dismiss
-                                actions: [{
-                                    label: 'Refresh Now',
-                                    primary: true,
-                                    onClick: () => {
-                                        newWorker.postMessage('skipWaiting');
-                                    }
-                                }]
-                            });
-                        }
+                    if (newWorker.state === 'installed') {
+                        notifyUpdateAvailable(newWorker);
                     }
                 });
             });
 
             // Handle controller change (after skipWaiting)
             navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!reloadForServiceWorkerUpdate || didReloadForServiceWorkerUpdate) return;
+                didReloadForServiceWorkerUpdate = true;
                 window.location.reload();
             });
         })
