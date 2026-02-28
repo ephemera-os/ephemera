@@ -540,12 +540,12 @@ function renderAISection(windowId) {
             <div id="ai-oauth-section-${windowId}" class="settings-row" style="flex-direction:column;align-items:stretch;display:none;">
                 <div class="settings-row-label" style="margin-bottom:8px;">ChatGPT Account</div>
                 <div style="display:flex;gap:8px;align-items:center;">
-                    <button class="btn" id="ai-oauth-login-${windowId}" style="flex:0 0 auto;">Login with ChatGPT</button>
+                    <button class="btn" id="ai-oauth-login-${windowId}" style="flex:0 0 auto;">Connect ChatGPT</button>
                     <button class="btn btn-sm" id="ai-oauth-disconnect-${windowId}" style="flex:0 0 auto;display:none;">Disconnect</button>
                 </div>
                 <div class="settings-row-desc" style="margin-top:8px;">
                     <span id="ai-oauth-status-${windowId}" style="color:var(--fg-secondary);">Not connected</span><br>
-                    <span style="color:var(--fg-muted);font-size:0.78rem;">Use your ChatGPT Plus or Pro subscription instead of a pay-per-use API key</span>
+                    <span style="color:var(--fg-muted);font-size:0.78rem;">Uses an anonymous server-side session. Tokens stay on the server.</span>
                 </div>
             </div>
 
@@ -1796,7 +1796,7 @@ function initSectionHandlers(section, windowId, lifecycle) {
             openai: { setting: 'openaiApiKey', label: 'OpenAI API Key', placeholder: 'sk-...', name: 'OpenAI', hint: 'Get key from platform.openai.com/api-keys' },
             anthropic: { setting: 'anthropicApiKey', label: 'Anthropic API Key', placeholder: 'sk-ant-...', name: 'Anthropic', hint: 'Get key from console.anthropic.com/settings/keys' },
             google: { setting: 'googleApiKey', label: 'Google AI API Key', placeholder: 'AIza...', name: 'Google AI', hint: 'Get key from aistudio.google.com/app/apikey' },
-            chatgpt: { setting: null, label: 'ChatGPT Plus/Pro', placeholder: '', name: 'ChatGPT Plus/Pro', hint: '', authType: 'oauth', oauthProvider: 'chatgpt' }
+            chatgpt: { setting: null, label: 'ChatGPT Plus/Pro', placeholder: '', name: 'ChatGPT Plus/Pro', hint: '', authType: 'session', sessionProvider: 'chatgpt' }
         };
 
         const modelSelectMap = {
@@ -1829,7 +1829,7 @@ function initSectionHandlers(section, windowId, lifecycle) {
 
         function isOAuthProvider(provider) {
             const meta = providerMeta[provider];
-            return meta?.authType === 'oauth';
+            return meta?.authType === 'session';
         }
 
         function updateOAuthStatus() {
@@ -1837,7 +1837,7 @@ function initSectionHandlers(section, windowId, lifecycle) {
             const provider = getActiveProvider();
             const meta = getActiveMeta();
             if (!isOAuthProvider(provider)) return;
-            const status = window.EphemeraAIOAuth?.getStatus?.(meta.oauthProvider) || { connected: false };
+            const status = window.EphemeraAIOAuth?.getStatus?.(meta.sessionProvider) || { connected: false };
             if (status.connected) {
                 const userName = status.user?.name || status.user?.email || 'Connected';
                 oauthStatusEl.innerHTML = `<span style="color:var(--accent);">${EphemeraSanitize.escapeHtml(userName)}</span>`;
@@ -1910,7 +1910,7 @@ function initSectionHandlers(section, windowId, lifecycle) {
             const oauth = isOAuthProvider(provider);
 
             if (oauth) {
-                const connected = window.EphemeraAIOAuth?.isConnected?.(meta.oauthProvider);
+                const connected = window.EphemeraAIOAuth?.isConnected?.(meta.sessionProvider);
                 if (!connected) {
                     modelsStatus.textContent = 'Log in to load models';
                     modelsStatus.style.color = 'var(--fg-muted)';
@@ -2006,12 +2006,12 @@ function initSectionHandlers(section, windowId, lifecycle) {
                 if (!isOAuthProvider(provider)) return;
                 oauthLoginBtn.disabled = true;
                 try {
-                    await window.EphemeraAIOAuth.connect(meta.oauthProvider);
+                    await window.EphemeraAIOAuth.connect(meta.sessionProvider);
                     updateOAuthStatus();
                     await loadModels(true);
                 } catch (e) {
                     if (window.EphemeraNotifications) {
-                        window.EphemeraNotifications.error('OAuth Login Failed', e.message || 'Could not connect.');
+                        window.EphemeraNotifications.error('ChatGPT Connect Failed', e.message || 'Could not connect.');
                     }
                 } finally {
                     oauthLoginBtn.disabled = false;
@@ -2024,8 +2024,15 @@ function initSectionHandlers(section, windowId, lifecycle) {
                 const provider = getActiveProvider();
                 const meta = getActiveMeta();
                 if (!isOAuthProvider(provider)) return;
-                await window.EphemeraAIOAuth.disconnect(meta.oauthProvider);
-                updateOAuthStatus();
+                try {
+                    await window.EphemeraAIOAuth.disconnect(meta.sessionProvider);
+                    updateOAuthStatus();
+                } catch (e) {
+                    window.EphemeraNotifications?.error?.(
+                        'ChatGPT Disconnect Failed',
+                        e?.message || 'Could not disconnect.'
+                    );
+                }
             });
         }
 
@@ -2069,7 +2076,7 @@ function initSectionHandlers(section, windowId, lifecycle) {
             testResult.innerHTML = '<span style="color:var(--fg-muted);">Testing connection...</span>';
 
             if (oauth) {
-                const connected = window.EphemeraAIOAuth?.isConnected?.(meta.oauthProvider);
+                const connected = window.EphemeraAIOAuth?.isConnected?.(meta.sessionProvider);
                 if (!connected) {
                     testResult.style.background = 'rgba(255,77,106,0.1)';
                     testResult.innerHTML = '<span style="color:var(--danger);">Not connected</span><br><span style="font-size:0.85rem;color:var(--fg-secondary);">Please log in first.</span>';

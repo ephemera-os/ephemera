@@ -26,7 +26,7 @@ None. Ephemera is a static browser application with local profiles.
 Optional:
 - **Error Tracking**: [Sentry](https://sentry.io/) (if you want error monitoring)
 - **Cloud Sync**: self-host the sync server in `server/` (if you want cross-device sync)
-- **ChatGPT OAuth**: an OpenAI OAuth application (if you want users to log in with their ChatGPT Plus/Pro subscription)
+- **ChatGPT Plus/Pro session auth**: optional PHP endpoints in `public/api/ai-oauth/` (if you want users to connect their ChatGPT Plus/Pro session without API keys)
 
 ### Local Requirements
 
@@ -55,28 +55,29 @@ VITE_SENTRY_DSN=https://your-key@o123456.ingest.sentry.io/1234567
 VITE_SENTRY_ENVIRONMENT=production
 ```
 
-### 3. Configure ChatGPT OAuth (Optional)
+### 3. Configure ChatGPT Plus/Pro Session Auth (Optional)
 
-This enables the "ChatGPT Plus/Pro" provider, which lets users authenticate with their OpenAI account and use their subscription instead of a pay-per-use API key. The OAuth token exchange requires a `client_secret`, so it is handled by Vercel serverless functions in `api/ai-oauth/`.
+This enables the "ChatGPT Plus/Pro" provider so users can connect a ChatGPT session from Settings without entering an API key.
 
-1. Register an OAuth application with OpenAI
-2. Set the redirect URI to `https://your-domain.com/api/ai-oauth/callback`
-3. Add the following environment variables:
+It uses server-side PHP endpoints in `public/api/ai-oauth/` and device-code style sign-in (`auth.openai.com/codex/device`).
+
+No always-on PHP process is required on shared hosting. The endpoints are regular PHP files executed on-demand per request.
+
+Set variables as needed:
 
 ```bash
 # Client-side (.env.local or hosting env vars)
-VITE_OPENAI_OAUTH_CLIENT_ID=your-openai-client-id
 VITE_APP_URL=https://your-domain.com
+# Optional override if AI auth endpoints are not at /api (root) or <BASE_URL>/api (subpath)
+# VITE_AI_OAUTH_API_BASE_PATH=/ephemera/api
 
-# Server-side only (Vercel environment variables — never in .env.local)
-OPENAI_OAUTH_CLIENT_ID=your-openai-client-id
-OPENAI_OAUTH_CLIENT_SECRET=your-openai-client-secret
+# Server-side optional override (PHP env/config)
+# OPENAI_CODEX_CLIENT_ID=app_EMoamEEZ73f0CkXaXp7hrann
 ```
 
-> **Note**: The serverless functions in `api/ai-oauth/` are designed for Vercel. If you deploy elsewhere (Netlify, VPS), you'll need to adapt them to your platform's serverless/function format or run them as a small Express server.
+> **Note**: If `OPENAI_CODEX_CLIENT_ID` is omitted, Ephemera uses the Codex public client id by default.
 
 ---
-
 ## Deployment Modes At a Glance
 
 Use this matrix to pick the right build command and hosting setup.
@@ -129,9 +130,9 @@ When prompted:
 netlify env:set VITE_SENTRY_DSN "your-sentry-dsn"
 netlify env:set VITE_SENTRY_ENVIRONMENT "production"
 
-# Optional (ChatGPT OAuth — see "Configure ChatGPT OAuth" above)
-# netlify env:set VITE_OPENAI_OAUTH_CLIENT_ID "your-client-id"
+# Optional (ChatGPT Plus/Pro session auth)
 # netlify env:set VITE_APP_URL "https://your-domain.com"
+# netlify env:set VITE_AI_OAUTH_API_BASE_PATH "/api"
 ```
 
 Or set them in the Netlify dashboard:
@@ -228,7 +229,39 @@ If your host disables `mod_headers`, the app still works; only the explicit no-c
 > using `public/_headers` as the source of truth. Pay special attention to `/sandbox/*` which requires a
 > different CSP (`script-src ... blob:`) so user-created apps can run while the main app stays strict.
 
-### 4. If your site root also has rewrites
+### 4. Enable ChatGPT Plus/Pro on shared hosting (optional)
+
+Shared hosting can run ChatGPT session auth using the PHP endpoints bundled in:
+
+- `public/api/ai-oauth/device-start.php`
+- `public/api/ai-oauth/device-poll.php`
+- `public/api/ai-oauth/status.php`
+- `public/api/ai-oauth/logout.php`
+- `public/api/ai-oauth/models.php`
+- `public/api/ai-oauth/chat.php`
+- `public/api/ai-oauth/.htaccess` (extensionless routing)
+
+When you upload `dist/` contents to `public_html/ephemera/`, those files land under:
+
+- `public_html/ephemera/api/ai-oauth/`
+
+Configure ChatGPT session auth:
+
+1. Build-time vars:
+
+```bash
+VITE_APP_URL=https://example.com
+# Optional explicit override (default for /ephemera builds is already /ephemera/api)
+# VITE_AI_OAUTH_API_BASE_PATH=/ephemera/api
+```
+
+2. Server-side optional override:
+   - Prefer environment variables on your host:
+     - `OPENAI_CODEX_CLIENT_ID`
+   - If env vars are unavailable, create `public_html/ephemera/api/ai-oauth/config.php`
+     from `config.example.php` and set values there.
+
+### 5. If your site root also has rewrites
 
 If your main site already has a global catch-all rewrite, exclude the app subpath first:
 
@@ -238,7 +271,7 @@ RewriteRule ^ephemera/ - [L]
 
 Then keep the app-specific `.htaccess` inside the `ephemera/` folder.
 
-### 5. Post-upload browser refresh
+### 6. Post-upload browser refresh
 
 After deploying an update:
 
@@ -582,7 +615,7 @@ curl -H "Authorization: Bearer your-token" http://localhost:3001/api/ping
 - [ ] Verify HTTPS is working (green lock icon)
 - [ ] Test file creation and saving
 - [ ] Test AI features (if API key configured)
-- [ ] Test ChatGPT OAuth login/disconnect (if OAuth configured)
+- [ ] Test ChatGPT Plus/Pro connect/disconnect (if configured)
 - [ ] Check browser console for errors
 - [ ] Verify CSP headers are not blocking resources
 

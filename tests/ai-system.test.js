@@ -72,6 +72,38 @@ describe('EphemeraAI provider routing and usage tracking', () => {
         expect(options.method).toBe('POST');
     });
 
+    it('routes chatgpt requests through same-origin proxy when session is connected', async () => {
+        window.EphemeraState.updateSetting('aiProvider', 'chatgpt');
+        window.EphemeraAIOAuth = {
+            refreshStatus: vi.fn(async () => ({ connected: true })),
+            isConnected: vi.fn(() => true)
+        };
+
+        const fetchMock = vi.fn(async () => ({
+            ok: true,
+            json: async () => ({
+                content: 'ChatGPT OK',
+                usage: { prompt_tokens: 12, completion_tokens: 6, total_tokens: 18 }
+            })
+        }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const response = await EphemeraAI.chat(
+            [{ role: 'user', content: 'ping' }],
+            'gpt-5.2-codex',
+            null,
+            { provider: 'chatgpt', bypassRateLimit: true }
+        );
+
+        expect(response).toBe('ChatGPT OK');
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        const [url, options] = fetchMock.mock.calls[0];
+        expect(url).toBe('/api/ai-oauth/chat');
+        expect(options.credentials).toBe('same-origin');
+        expect(options.method).toBe('POST');
+        expect(String(options.headers.Authorization || '')).toBe('');
+    });
+
     it('returns per-use-case model and falls back safely when default model mismatches provider', () => {
         window.EphemeraState.updateSetting('aiProvider', 'openai');
         window.EphemeraState.updateSetting('aiModel', 'openrouter/free');
@@ -81,18 +113,53 @@ describe('EphemeraAI provider routing and usage tracking', () => {
         expect(EphemeraAI.getModelForUseCase('chat')).toBe('gpt-4o-mini');
     });
 
-    it('treats refreshable OAuth sessions as configured', async () => {
+    it('treats connected server auth sessions as configured', async () => {
         window.EphemeraState.updateSetting('aiProvider', 'chatgpt');
         window.EphemeraAIOAuth = {
-            getAccessToken: vi.fn(async () => 'access-token-from-refresh'),
+            refreshStatus: vi.fn(async () => ({ connected: true })),
             isConnected: vi.fn(() => false)
         };
 
         const configured = await EphemeraAI.isConfigured();
 
         expect(configured).toBe(true);
-        expect(window.EphemeraAIOAuth.getAccessToken).toHaveBeenCalledWith('chatgpt');
+        expect(window.EphemeraAIOAuth.refreshStatus).toHaveBeenCalledWith('chatgpt');
         expect(window.EphemeraAIOAuth.isConnected).not.toHaveBeenCalled();
+    });
+
+    it('treats status refresh failures as disconnected', async () => {
+        window.EphemeraState.updateSetting('aiProvider', 'chatgpt');
+        window.EphemeraAIOAuth = {
+            refreshStatus: vi.fn(async () => {
+                throw new Error('status endpoint unavailable');
+            }),
+            isConnected: vi.fn(() => true)
+        };
+
+        const configured = await EphemeraAI.isConfigured();
+
+        expect(configured).toBe(false);
+        expect(window.EphemeraAIOAuth.refreshStatus).toHaveBeenCalledWith('chatgpt');
+        expect(window.EphemeraAIOAuth.isConnected).not.toHaveBeenCalled();
+    });
+
+    it('caches disconnected chatgpt model lookups to avoid repeated status checks', async () => {
+        window.EphemeraState.updateSetting('aiProvider', 'chatgpt');
+        const refreshStatus = vi.fn(async () => ({ connected: false }));
+        window.EphemeraAIOAuth = {
+            refreshStatus,
+            isConnected: vi.fn(() => false)
+        };
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+
+        const firstModels = await EphemeraAI.getModels(false, 'chatgpt');
+        const secondModels = await EphemeraAI.getModels(false, 'chatgpt');
+
+        expect(firstModels).toEqual([]);
+        expect(secondModels).toEqual([]);
+        expect(refreshStatus).toHaveBeenCalledTimes(1);
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('tracks and resets session usage counters', async () => {

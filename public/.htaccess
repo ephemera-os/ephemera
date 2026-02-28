@@ -3,6 +3,9 @@ DirectoryIndex index.html
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # Allow API endpoints under /api/* to be handled by PHP rewrites.
+    RewriteRule ^api/ - [L]
+
     # Serve existing files/folders directly.
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d

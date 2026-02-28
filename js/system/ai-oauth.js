@@ -1,44 +1,55 @@
-const AI_OAUTH_STORAGE_KEY = 'ai_oauth_tokens';
-const AI_OAUTH_SESSION_CACHE_KEY = 'ephemera_ai_oauth_cache';
-const AI_OAUTH_PENDING_KEY = 'ephemera_ai_oauth_pending';
-const AI_OAUTH_PENDING_COOKIE_KEY = 'ephemera_ai_oauth_pending_pkce';
-const AI_OAUTH_PENDING_MAX_AGE_MS = 15 * 60 * 1000;
-const AI_OAUTH_TOKEN_EXPIRY_SKEW_MS = 30 * 1000;
+const AI_AUTH_DEFAULT_API_BASE_PATH = '/api';
+const AI_AUTH_POLL_TIMEOUT_MS = 16 * 60 * 1000;
+const AI_AUTH_MIN_POLL_INTERVAL_MS = 3000;
+const AI_AUTH_POPUP_FEATURES = 'width=640,height=760,scrollbars=yes,resizable=yes';
 
-const AI_OAUTH_CONFIGS = {
-    chatgpt: {
-        authorizeUrl: 'https://auth0.openai.com/authorize',
-        tokenUrl: 'https://auth0.openai.com/oauth/token',
-        scopes: ['openid', 'profile', 'email', 'model.read', 'model.request'],
-        audience: 'https://api.openai.com/v1',
-        getClientId() {
-            return String(import.meta?.env?.VITE_OPENAI_OAUTH_CLIENT_ID || '').trim();
-        }
+function _aiNormalizePath(path, fallback = '/') {
+    let value = String(path || '').trim();
+    if (!value) value = fallback;
+    if (!value.startsWith('/')) value = `/${value}`;
+    value = value.replace(/\/{2,}/g, '/');
+    if (value.length > 1) {
+        value = value.replace(/\/+$/g, '');
     }
-};
-
-function _aiOAuthSafeJsonParse(raw, fallback = null) {
-    if (!raw || typeof raw !== 'string') return fallback;
-    try {
-        return JSON.parse(raw);
-    } catch {
-        return fallback;
-    }
+    return value || '/';
 }
 
-function _aiOAuthBytesToBase64Url(bytesLike) {
-    const bytes = bytesLike instanceof Uint8Array ? bytesLike : new Uint8Array(bytesLike || []);
-    let binary = '';
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.subarray(i, i + chunkSize);
-        binary += String.fromCharCode(...chunk);
-    }
-    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+function _aiJoinPath(basePath, suffix) {
+    const base = _aiNormalizePath(basePath, '/');
+    const child = String(suffix || '').replace(/^\/+/, '');
+    if (!child) return base;
+    if (base === '/') return `/${child}`;
+    return `${base}/${child}`;
 }
+
+function _aiResolveApiBasePath() {
+    const configured = String(import.meta?.env?.VITE_AI_OAUTH_API_BASE_PATH || '').trim();
+    if (configured) {
+        return _aiNormalizePath(configured, AI_AUTH_DEFAULT_API_BASE_PATH);
+    }
+
+    const basePath = _aiNormalizePath(import.meta?.env?.BASE_URL || '/', '/');
+    if (basePath === '/') {
+        return AI_AUTH_DEFAULT_API_BASE_PATH;
+    }
+    return _aiJoinPath(basePath, 'api');
+}
+
+const AI_AUTH_API_BASE_PATH = _aiResolveApiBasePath();
+const AI_AUTH_STATUS_PATH = _aiJoinPath(AI_AUTH_API_BASE_PATH, 'ai-oauth/status');
+const AI_AUTH_DEVICE_START_PATH = _aiJoinPath(AI_AUTH_API_BASE_PATH, 'ai-oauth/device-start');
+const AI_AUTH_DEVICE_POLL_PATH = _aiJoinPath(AI_AUTH_API_BASE_PATH, 'ai-oauth/device-poll');
+const AI_AUTH_LOGOUT_PATH = _aiJoinPath(AI_AUTH_API_BASE_PATH, 'ai-oauth/logout');
+
+const DEFAULT_STATUS = Object.freeze({
+    connected: false,
+    user: null,
+    expiresAt: null,
+    accountId: ''
+});
 
 const EphemeraAIOAuth = {
-    _tokens: {},
+    _status: { chatgpt: { ...DEFAULT_STATUS } },
     _initialized: false,
     _initPromise: null,
 
@@ -48,8 +59,9 @@ const EphemeraAIOAuth = {
         }
 
         this._initPromise = (async () => {
-            this._loadSessionCache();
-            await this._loadTokensFromStorage();
+            await this.refreshStatus('chatgpt').catch(() => {
+                this._status.chatgpt = { ...DEFAULT_STATUS };
+            });
             this._initialized = true;
             return this;
         })();
@@ -57,330 +69,226 @@ const EphemeraAIOAuth = {
         return this._initPromise;
     },
 
-    isConnected(provider) {
-        const record = this._tokens[provider];
-        return Boolean(record?.accessToken) && !this._isTokenExpired(record);
+    isConnected(provider = 'chatgpt') {
+        const status = this._status[String(provider || 'chatgpt')] || DEFAULT_STATUS;
+        return Boolean(status.connected);
     },
 
-    async getAccessToken(provider) {
-        await this.init();
-        const record = this._tokens[provider];
-        if (!record?.accessToken) return '';
-
-        if (this._isTokenExpired(record)) {
-            const refreshed = await this._refreshToken(provider);
-            if (!refreshed) {
-                await this.disconnect(provider);
-                return '';
-            }
-            return this._tokens[provider]?.accessToken || '';
-        }
-
-        return record.accessToken;
-    },
-
-    async connect(provider) {
-        await this.init();
-
-        const config = AI_OAUTH_CONFIGS[provider];
-        if (!config) {
-            throw new Error(`Unknown AI OAuth provider: ${provider}`);
-        }
-
-        const clientId = config.getClientId();
-        if (!clientId) {
-            throw new Error('OpenAI OAuth client ID is not configured. Set VITE_OPENAI_OAUTH_CLIENT_ID in your environment.');
-        }
-
-        const state = this._randomToken(32);
-        const codeVerifier = this._randomToken(64);
-        const codeChallenge = await this._createCodeChallenge(codeVerifier);
-        const redirectUri = `${window.location.origin}/api/ai-oauth/callback`;
-
-        this._writePending({
-            provider,
-            state,
-            codeVerifier,
-            createdAt: Date.now()
-        });
-
-        const authUrl = new URL(config.authorizeUrl);
-        authUrl.searchParams.set('client_id', clientId);
-        authUrl.searchParams.set('redirect_uri', redirectUri);
-        authUrl.searchParams.set('scope', config.scopes.join(' '));
-        authUrl.searchParams.set('state', state);
-        authUrl.searchParams.set('response_type', 'code');
-        authUrl.searchParams.set('code_challenge', codeChallenge);
-        authUrl.searchParams.set('code_challenge_method', 'S256');
-        if (config.audience) {
-            authUrl.searchParams.set('audience', config.audience);
-        }
-
-        return new Promise((resolve, reject) => {
-            const popup = window.open(
-                authUrl.toString(),
-                'ai_oauth_popup',
-                'width=600,height=700,scrollbars=yes,resizable=yes'
-            );
-
-            if (!popup) {
-                this._clearPending();
-                reject(new Error('Popup was blocked. Please allow popups for this site.'));
-                return;
-            }
-
-            const onMessage = async (event) => {
-                if (event.origin !== window.location.origin) return;
-
-                const data = event.data;
-                if (!data || data.type !== 'ai-oauth-callback') return;
-
-                window.removeEventListener('message', onMessage);
-                clearInterval(pollClosed);
-
-                if (data.error) {
-                    this._clearPending();
-                    reject(new Error(data.error_description || data.error));
-                    return;
-                }
-
-                const pending = this._readPending();
-                this._clearPending();
-
-                if (!pending || pending.state !== data.state) {
-                    reject(new Error('OAuth state mismatch. Please try again.'));
-                    return;
-                }
-
-                try {
-                    this._tokens[provider] = {
-                        accessToken: data.access_token,
-                        refreshToken: data.refresh_token || '',
-                        expiresAt: data.expires_in
-                            ? Date.now() + Number(data.expires_in) * 1000
-                            : null,
-                        user: data.user || null
-                    };
-
-                    this._syncSessionCache();
-                    await this._persistTokens();
-                    this._emitUpdate();
-
-                    if (window.EphemeraNotifications?.success) {
-                        const label = this._tokens[provider]?.user?.name || 'Connected';
-                        window.EphemeraNotifications.success('ChatGPT Connected', label);
-                    }
-
-                    resolve(this.getStatus(provider));
-                } catch (err) {
-                    reject(err);
-                }
-            };
-
-            window.addEventListener('message', onMessage);
-
-            const pollClosed = setInterval(() => {
-                if (popup.closed) {
-                    clearInterval(pollClosed);
-                    window.removeEventListener('message', onMessage);
-                    this._clearPending();
-                    reject(new Error('OAuth popup was closed before completing sign-in.'));
-                }
-            }, 500);
-        });
-    },
-
-    async disconnect(provider) {
-        const wasConnected = Boolean(this._tokens[provider]?.accessToken);
-        delete this._tokens[provider];
-        this._syncSessionCache();
-        await this._persistTokens();
-        this._emitUpdate();
-        return wasConnected;
-    },
-
-    getStatus(provider) {
-        const record = this._tokens[provider];
+    getStatus(provider = 'chatgpt') {
+        const status = this._status[String(provider || 'chatgpt')] || DEFAULT_STATUS;
         return {
-            connected: this.isConnected(provider),
-            user: record?.user || null,
-            expiresAt: record?.expiresAt || null
+            connected: Boolean(status.connected),
+            user: status.user || null,
+            expiresAt: Number(status.expiresAt || 0) || null,
+            accountId: String(status.accountId || '')
         };
     },
 
-    async _refreshToken(provider) {
-        const record = this._tokens[provider];
-        if (!record?.refreshToken) return false;
+    async refreshStatus(provider = 'chatgpt') {
+        const targetProvider = String(provider || 'chatgpt');
+        const response = await this._requestJson(AI_AUTH_STATUS_PATH, 'GET');
+        this._status[targetProvider] = this._normalizeStatus(response);
+        this._emitUpdate(targetProvider);
+        return this.getStatus(targetProvider);
+    },
 
+    async connect(provider = 'chatgpt') {
+        const targetProvider = String(provider || 'chatgpt');
+        if (targetProvider !== 'chatgpt') {
+            throw new Error(`Unsupported provider: ${targetProvider}`);
+        }
+
+        // Open a blank popup before async work to preserve transient user activation.
+        const popupHandle = this._openVerificationWindow();
+        let start;
         try {
-            const response = await fetch('/api/ai-oauth/refresh', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    refresh_token: record.refreshToken,
-                    provider
-                })
-            });
-
-            if (!response.ok) return false;
-
-            const data = await response.json();
-            if (!data.access_token) return false;
-
-            this._tokens[provider] = {
-                accessToken: data.access_token,
-                refreshToken: data.refresh_token || record.refreshToken,
-                expiresAt: data.expires_in
-                    ? Date.now() + Number(data.expires_in) * 1000
-                    : null,
-                user: record.user
-            };
-
-            this._syncSessionCache();
-            await this._persistTokens();
-            return true;
-        } catch {
-            return false;
+            await this.init();
+            start = await this._requestJson(AI_AUTH_DEVICE_START_PATH, 'POST', {});
+        } catch (error) {
+            this._closePopup(popupHandle);
+            throw error;
         }
-    },
 
-    _isTokenExpired(record) {
-        if (!record || !record.expiresAt) return false;
-        return Date.now() + AI_OAUTH_TOKEN_EXPIRY_SKEW_MS >= Number(record.expiresAt);
-    },
+        const verificationUrl = String(start.verification_url || 'https://auth.openai.com/codex/device').trim();
+        const userCode = String(start.user_code || '').trim();
 
-    _randomToken(byteLength = 32) {
-        const bytes = new Uint8Array(Math.max(16, Number(byteLength) || 32));
-        crypto.getRandomValues(bytes);
-        return _aiOAuthBytesToBase64Url(bytes);
-    },
-
-    async _createCodeChallenge(verifier) {
-        const encoder = new TextEncoder();
-        const digest = await crypto.subtle.digest('SHA-256', encoder.encode(String(verifier || '')));
-        return _aiOAuthBytesToBase64Url(new Uint8Array(digest));
-    },
-
-    _writePending(pending) {
-        sessionStorage.setItem(AI_OAUTH_PENDING_KEY, JSON.stringify(pending));
-        this._writePendingCookie(pending);
-    },
-
-    _readPending() {
-        const pending = _aiOAuthSafeJsonParse(sessionStorage.getItem(AI_OAUTH_PENDING_KEY), null);
-        if (!pending || typeof pending !== 'object') {
-            return null;
+        if (!userCode) {
+            this._closePopup(popupHandle);
+            throw new Error('Server did not return a device code.');
         }
-        const createdAt = Number(pending.createdAt || 0);
-        if (!createdAt || Date.now() - createdAt > AI_OAUTH_PENDING_MAX_AGE_MS) {
-            this._clearPending();
-            return null;
+
+        const intervalMs = Math.max(
+            Number(start.interval_ms || start.interval || 0) || AI_AUTH_MIN_POLL_INTERVAL_MS,
+            AI_AUTH_MIN_POLL_INTERVAL_MS
+        );
+
+        const opened = this._openVerificationUrl(verificationUrl, popupHandle);
+        if (!opened) {
+            this._closePopup(popupHandle);
         }
-        return pending;
+        const instruction = opened
+            ? `Enter this code to continue: ${userCode}`
+            : `Open ${verificationUrl} and enter code: ${userCode}`;
+
+        window.EphemeraNotifications?.info?.('ChatGPT Sign-in', instruction);
+
+        const status = await this._pollForAuthorization(intervalMs);
+        this._status[targetProvider] = this._normalizeStatus(status);
+        this._emitUpdate(targetProvider);
+
+        const label = this._status[targetProvider]?.user?.name
+            || this._status[targetProvider]?.user?.email
+            || this._status[targetProvider]?.accountId
+            || 'Connected';
+        window.EphemeraNotifications?.success?.('ChatGPT Connected', String(label));
+
+        return this.getStatus(targetProvider);
     },
 
-    _clearPending() {
-        sessionStorage.removeItem(AI_OAUTH_PENDING_KEY);
-        this._clearPendingCookie();
+    async disconnect(provider = 'chatgpt') {
+        const targetProvider = String(provider || 'chatgpt');
+        await this._requestJson(AI_AUTH_LOGOUT_PATH, 'POST', {});
+        this._status[targetProvider] = { ...DEFAULT_STATUS };
+        this._emitUpdate(targetProvider);
+        return true;
     },
 
-    _pendingCookieAttributes() {
-        const secure = window.location?.protocol === 'https:' ? '; Secure' : '';
-        return `Path=/api/ai-oauth/callback; SameSite=Lax${secure}`;
+    async getAccessToken(_provider = 'chatgpt') {
+        return '';
     },
 
-    _writePendingCookie(pending) {
-        if (typeof document === 'undefined') return;
-        try {
-            const payload = JSON.stringify({
-                provider: String(pending?.provider || ''),
-                state: String(pending?.state || ''),
-                codeVerifier: String(pending?.codeVerifier || ''),
-                createdAt: Number(pending?.createdAt || Date.now())
-            });
-            const encoded = encodeURIComponent(payload);
-            const maxAgeSeconds = Math.max(60, Math.floor(AI_OAUTH_PENDING_MAX_AGE_MS / 1000));
-            document.cookie = `${AI_OAUTH_PENDING_COOKIE_KEY}=${encoded}; ${this._pendingCookieAttributes()}; Max-Age=${maxAgeSeconds}`;
-        } catch {
-            // Ignore cookie write failures and rely on sessionStorage fallback.
-        }
-    },
+    async _pollForAuthorization(intervalMs) {
+        const startedAt = Date.now();
+        let lastError = null;
 
-    _clearPendingCookie() {
-        if (typeof document === 'undefined') return;
-        document.cookie = `${AI_OAUTH_PENDING_COOKIE_KEY}=; ${this._pendingCookieAttributes()}; Max-Age=0`;
-    },
-
-    _loadSessionCache() {
-        const cached = _aiOAuthSafeJsonParse(sessionStorage.getItem(AI_OAUTH_SESSION_CACHE_KEY));
-        if (!cached || typeof cached !== 'object') return;
-        for (const [key, value] of Object.entries(cached)) {
-            if (value && typeof value === 'object') {
-                this._tokens[key] = { ...value };
-            }
-        }
-    },
-
-    _syncSessionCache() {
-        const payload = {};
-        for (const [key, value] of Object.entries(this._tokens)) {
-            payload[key] = value ? { ...value } : null;
-        }
-        const hasAny = Object.values(payload).some(Boolean);
-        if (hasAny) {
-            sessionStorage.setItem(AI_OAUTH_SESSION_CACHE_KEY, JSON.stringify(payload));
-        } else {
-            sessionStorage.removeItem(AI_OAUTH_SESSION_CACHE_KEY);
-        }
-    },
-
-    async _loadTokensFromStorage() {
-        if (!window.EphemeraStorage?.get) return false;
-        try {
-            const record = await window.EphemeraStorage.get('metadata', AI_OAUTH_STORAGE_KEY);
-            const value = record?.value;
-            if (!value || typeof value !== 'object') return false;
-            for (const [key, data] of Object.entries(value)) {
-                if (data && typeof data === 'object') {
-                    this._tokens[key] = { ...data };
+        while (Date.now() - startedAt < AI_AUTH_POLL_TIMEOUT_MS) {
+            let response;
+            try {
+                response = await this._requestJson(AI_AUTH_DEVICE_POLL_PATH, 'POST', {});
+            } catch (error) {
+                lastError = error;
+                const statusCode = Number(error?.status || 0);
+                if (statusCode >= 400 && statusCode < 600) {
+                    throw error;
                 }
+                await this._sleep(intervalMs);
+                continue;
             }
-            this._syncSessionCache();
-            return true;
-        } catch {
-            return false;
+
+            const status = String(response?.status || '').toLowerCase();
+            if (status === 'authorized' || response?.connected === true) {
+                return response;
+            }
+
+            if (status === 'pending' || status === 'authorization_pending' || status === '') {
+                await this._sleep(intervalMs);
+                continue;
+            }
+
+            const detail = String(response?.error_description || response?.error || 'Authorization failed.');
+            throw new Error(detail);
         }
+
+        if (lastError?.message) {
+            throw new Error(`Sign-in timed out: ${lastError.message}`);
+        }
+        throw new Error('Sign-in timed out before authorization completed.');
     },
 
-    async _persistTokens() {
-        this._syncSessionCache();
-        if (!window.EphemeraStorage?.put) return false;
+    _normalizeStatus(payload) {
+        if (!payload || typeof payload !== 'object') {
+            return { ...DEFAULT_STATUS };
+        }
+
+        const user = payload.user && typeof payload.user === 'object'
+            ? {
+                name: String(payload.user.name || '').trim(),
+                email: String(payload.user.email || '').trim()
+            }
+            : null;
+
+        return {
+            connected: Boolean(payload.connected),
+            user,
+            expiresAt: Number(payload.expiresAt || payload.expires_at || 0) || null,
+            accountId: String(payload.accountId || payload.account_id || '').trim()
+        };
+    },
+
+    _openVerificationWindow() {
         try {
-            const value = {};
-            for (const [key, data] of Object.entries(this._tokens)) {
-                value[key] = data ? { ...data } : null;
+            return window.open('', 'ephemera_ai_device_auth', AI_AUTH_POPUP_FEATURES);
+        } catch {
+            return null;
+        }
+    },
+
+    _openVerificationUrl(url, popupHandle = null) {
+        if (!url) return false;
+        try {
+            if (popupHandle && !popupHandle.closed) {
+                popupHandle.location.href = url;
+                popupHandle.focus?.();
+                return true;
             }
-            await window.EphemeraStorage.put('metadata', {
-                key: AI_OAUTH_STORAGE_KEY,
-                value,
-                updatedAt: Date.now()
-            });
-            return true;
+
+            const popup = window.open(url, 'ephemera_ai_device_auth', AI_AUTH_POPUP_FEATURES);
+            return Boolean(popup);
         } catch {
             return false;
         }
     },
 
-    _emitUpdate() {
-        window.EphemeraEvents?.emit?.('ai:oauth:updated', this.getStatus('chatgpt'));
+    _closePopup(popupHandle) {
+        if (!popupHandle || popupHandle.closed) return;
+        try {
+            popupHandle.close();
+        } catch {
+            // Ignore close failures for cross-origin popups.
+        }
+    },
+
+    _sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+    },
+
+    async _requestJson(url, method = 'GET', body = null) {
+        const headers = {
+            'Accept': 'application/json'
+        };
+        const request = {
+            method,
+            credentials: 'same-origin',
+            headers
+        };
+
+        if (body !== null && method !== 'GET') {
+            headers['Content-Type'] = 'application/json';
+            request.body = JSON.stringify(body);
+        }
+
+        const response = await fetch(url, request);
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            const message = String(payload?.error_description || payload?.error || `Request failed (${response.status})`);
+            const error = new Error(message);
+            error.status = Number(response.status || 0);
+            error.payload = payload;
+            throw error;
+        }
+
+        return payload;
+    },
+
+    _emitUpdate(provider = 'chatgpt') {
+        window.EphemeraEvents?.emit?.('ai:oauth:updated', this.getStatus(provider));
     },
 
     _resetForTests() {
-        this._tokens = {};
+        this._status = { chatgpt: { ...DEFAULT_STATUS } };
         this._initialized = false;
         this._initPromise = null;
-        sessionStorage.removeItem(AI_OAUTH_SESSION_CACHE_KEY);
-        this._clearPending();
     }
 };
 

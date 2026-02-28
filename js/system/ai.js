@@ -1,3 +1,41 @@
+const AI_CHATGPT_DEFAULT_API_BASE_PATH = '/api';
+
+function _aiNormalizePath(path, fallback = '/') {
+    let value = String(path || '').trim();
+    if (!value) value = fallback;
+    if (!value.startsWith('/')) value = `/${value}`;
+    value = value.replace(/\/{2,}/g, '/');
+    if (value.length > 1) {
+        value = value.replace(/\/+$/g, '');
+    }
+    return value || '/';
+}
+
+function _aiJoinPath(basePath, suffix) {
+    const base = _aiNormalizePath(basePath, '/');
+    const child = String(suffix || '').replace(/^\/+/, '');
+    if (!child) return base;
+    if (base === '/') return `/${child}`;
+    return `${base}/${child}`;
+}
+
+function _aiResolveApiBasePath() {
+    const configured = String(import.meta?.env?.VITE_AI_OAUTH_API_BASE_PATH || '').trim();
+    if (configured) {
+        return _aiNormalizePath(configured, AI_CHATGPT_DEFAULT_API_BASE_PATH);
+    }
+
+    const basePath = _aiNormalizePath(import.meta?.env?.BASE_URL || '/', '/');
+    if (basePath === '/') {
+        return AI_CHATGPT_DEFAULT_API_BASE_PATH;
+    }
+    return _aiJoinPath(basePath, 'api');
+}
+
+const AI_CHATGPT_API_BASE_PATH = _aiResolveApiBasePath();
+const AI_CHATGPT_MODELS_PATH = _aiJoinPath(AI_CHATGPT_API_BASE_PATH, 'ai-oauth/models');
+const AI_CHATGPT_CHAT_PATH = _aiJoinPath(AI_CHATGPT_API_BASE_PATH, 'ai-oauth/chat');
+
 const EphemeraAI = {
     _legacyCryptoKey: null,
     _cachedModels: null,
@@ -35,9 +73,9 @@ const EphemeraAI = {
             id: 'chatgpt',
             name: 'ChatGPT Plus/Pro',
             apiKeySetting: null,
-            defaultModel: 'gpt-4o',
-            authType: 'oauth',
-            oauthProvider: 'chatgpt'
+            defaultModel: 'gpt-5.2-codex',
+            authType: 'session',
+            sessionProvider: 'chatgpt'
         }
     },
 
@@ -75,9 +113,11 @@ const EphemeraAI = {
             { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' }
         ],
         chatgpt: [
-            { id: 'gpt-4o', name: 'GPT-4o' },
-            { id: 'gpt-4o-mini', name: 'GPT-4o mini' },
-            { id: 'o3-mini', name: 'o3-mini' }
+            { id: 'gpt-5.3-codex', name: 'GPT-5.3 Codex' },
+            { id: 'gpt-5.2-codex', name: 'GPT-5.2 Codex' },
+            { id: 'gpt-5.2', name: 'GPT-5.2' },
+            { id: 'gpt-5.1-codex', name: 'GPT-5.1 Codex' },
+            { id: 'gpt-5.1-codex-mini', name: 'GPT-5.1 Codex Mini' }
         ]
     },
 
@@ -293,7 +333,7 @@ const EphemeraAI = {
     async migrateKeyIfNeeded() {
         if (!window.EphemeraState) return;
         for (const cfg of Object.values(this.PROVIDERS)) {
-            if (cfg.authType === 'oauth') continue;
+            if (!cfg.apiKeySetting) continue;
             const settingKey = cfg.apiKeySetting;
             const raw = String(this._getSettings()[settingKey] || '');
             if (!raw || raw.startsWith('enc:')) continue;
@@ -308,8 +348,8 @@ const EphemeraAI = {
 
     async getApiKey(provider = null) {
         const cfg = this._getProviderConfig(provider);
-        if (cfg.authType === 'oauth') {
-            return window.EphemeraAIOAuth?.getAccessToken?.(cfg.oauthProvider) || '';
+        if (!cfg.apiKeySetting) {
+            return '';
         }
         const settingKey = this._getApiKeySetting(provider);
         const stored = String(this._getSettings()[settingKey] || '');
@@ -319,7 +359,7 @@ const EphemeraAI = {
     async setApiKey(key, provider = null) {
         const targetProvider = this._normalizeProvider(provider || this.getProvider());
         const cfg = this._getProviderConfig(targetProvider);
-        if (cfg.authType === 'oauth') return;
+        if (!cfg.apiKeySetting) return;
         const settingKey = this._getApiKeySetting(targetProvider);
         const encrypted = await this.encryptKey(String(key || '').trim());
         if (window.EphemeraState) {
@@ -337,13 +377,17 @@ const EphemeraAI = {
 
     async isConfigured(provider = null) {
         const cfg = this._getProviderConfig(provider);
-        if (cfg.authType === 'oauth') {
-            const oauth = window.EphemeraAIOAuth;
-            if (typeof oauth?.getAccessToken === 'function') {
-                const token = await oauth.getAccessToken(cfg.oauthProvider);
-                return Boolean(token);
+        if (cfg.authType === 'session') {
+            const auth = window.EphemeraAIOAuth;
+            if (typeof auth?.refreshStatus === 'function') {
+                try {
+                    const status = await auth.refreshStatus(cfg.sessionProvider);
+                    return Boolean(status?.connected);
+                } catch (_error) {
+                    return false;
+                }
             }
-            return oauth?.isConnected?.(cfg.oauthProvider) || false;
+            return Boolean(auth?.isConnected?.(cfg.sessionProvider));
         }
         const key = await this.getApiKey(provider);
         return !!key;
@@ -474,8 +518,18 @@ const EphemeraAI = {
 
     async _fetchModels(provider = null) {
         const targetProvider = this._normalizeProvider(provider || this.getProvider());
-        const apiKey = await this.getApiKey(targetProvider);
-        if (!apiKey) return [];
+        let apiKey = '';
+        if (targetProvider === 'chatgpt') {
+            const configured = await this.isConfigured('chatgpt');
+            if (!configured) {
+                this._cachedModelsByProvider[targetProvider] = [];
+                this._cachedModels = [];
+                return [];
+            }
+        } else {
+            apiKey = await this.getApiKey(targetProvider);
+            if (!apiKey) return [];
+        }
 
         try {
             let models = [];
@@ -491,7 +545,7 @@ const EphemeraAI = {
                     name: m.name || m.id,
                     context: m.context_length
                 }));
-            } else if (targetProvider === 'openai' || targetProvider === 'chatgpt') {
+            } else if (targetProvider === 'openai') {
                 const response = await fetch('https://api.openai.com/v1/models', {
                     headers: { 'Authorization': `Bearer ${apiKey}` }
                 });
@@ -500,6 +554,20 @@ const EphemeraAI = {
                 models = (data.data || [])
                     .filter(m => typeof m?.id === 'string' && (m.id.startsWith('gpt-') || m.id.startsWith('o')))
                     .map(m => ({ id: m.id, name: m.id }));
+            } else if (targetProvider === 'chatgpt') {
+                const response = await fetch(AI_CHATGPT_MODELS_PATH, {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (!response.ok) throw new Error(`Failed to fetch models (${response.status})`);
+                const data = await response.json();
+                models = (Array.isArray(data.models) ? data.models : [])
+                    .filter(m => typeof m?.id === 'string' && m.id.trim())
+                    .map(m => ({
+                        id: String(m.id).trim(),
+                        name: String(m.name || m.id).trim()
+                    }));
             } else if (targetProvider === 'anthropic') {
                 const response = await fetch('https://api.anthropic.com/v1/models', {
                     headers: {
@@ -639,7 +707,7 @@ const EphemeraAI = {
 
     _providerSupportsNativeStreaming(provider) {
         const target = this._normalizeProvider(provider);
-        return target === 'openrouter' || target === 'openai' || target === 'chatgpt';
+        return target === 'openrouter' || target === 'openai';
     },
 
     _buildOpenAICompatibleRequestBody(model, messages, stream) {
@@ -738,7 +806,7 @@ const EphemeraAI = {
             };
         }
 
-        if (targetProvider === 'openai' || targetProvider === 'chatgpt') {
+        if (targetProvider === 'openai') {
             return {
                 url: 'https://api.openai.com/v1/chat/completions',
                 options: {
@@ -750,6 +818,28 @@ const EphemeraAI = {
                     body: JSON.stringify(this._buildOpenAICompatibleRequestBody(model, messages, stream))
                 },
                 nativeStream: stream
+            };
+        }
+
+        if (targetProvider === 'chatgpt') {
+            return {
+                url: AI_CHATGPT_CHAT_PATH,
+                options: {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model,
+                        messages,
+                        max_tokens: this.getMaxTokens(),
+                        temperature: this.getTemperature(),
+                        stream: false
+                    })
+                },
+                nativeStream: false
             };
         }
 
@@ -791,7 +881,16 @@ const EphemeraAI = {
         const targetProvider = this._normalizeProvider(provider);
         if (!payload || typeof payload !== 'object') return '';
 
-        if (targetProvider === 'openrouter' || targetProvider === 'openai' || targetProvider === 'chatgpt') {
+        if (targetProvider === 'chatgpt') {
+            if (typeof payload.content === 'string' && payload.content.trim()) {
+                return payload.content;
+            }
+            if (typeof payload.output_text === 'string' && payload.output_text.trim()) {
+                return payload.output_text;
+            }
+        }
+
+        if (targetProvider === 'openrouter' || targetProvider === 'openai') {
             const content = payload.choices?.[0]?.message?.content;
             return this._extractTextFromOpenAIContent(content);
         }
@@ -833,7 +932,17 @@ const EphemeraAI = {
             return {};
         }
 
-        if (targetProvider === 'openrouter' || targetProvider === 'openai' || targetProvider === 'chatgpt') {
+        if (targetProvider === 'chatgpt') {
+            const usage = payload.usage || {};
+            return {
+                promptTokens: Number(usage.prompt_tokens || usage.input_tokens || payload.prompt_tokens || 0),
+                completionTokens: Number(usage.completion_tokens || usage.output_tokens || payload.completion_tokens || 0),
+                totalTokens: Number(usage.total_tokens || payload.total_tokens || 0),
+                costUsd: Number(payload.cost || payload.total_cost || 0)
+            };
+        }
+
+        if (targetProvider === 'openrouter' || targetProvider === 'openai') {
             return {
                 promptTokens: Number(payload.usage?.prompt_tokens || 0),
                 completionTokens: Number(payload.usage?.completion_tokens || 0),
@@ -979,13 +1088,19 @@ const EphemeraAI = {
 
         const normalizedMessages = this._normalizeMessages(messages);
         const { provider, model: resolvedModel } = this._resolveRequestProviderAndModel(model, options || {});
-        const apiKey = await this.getApiKey(provider);
-        if (!apiKey) {
-            const cfg = this._getProviderConfig(provider);
-            const hint = cfg.authType === 'oauth'
-                ? `${this._providerDisplayName(provider)} is not connected. Please log in via Settings.`
-                : `${this._providerDisplayName(provider)} API key not configured. Please add it in Settings.`;
-            throw new Error(hint);
+        const cfg = this._getProviderConfig(provider);
+        let apiKey = '';
+
+        if (cfg.authType === 'session') {
+            const connected = await this.isConfigured(provider);
+            if (!connected) {
+                throw new Error(`${this._providerDisplayName(provider)} is not connected. Please connect in Settings.`);
+            }
+        } else {
+            apiKey = await this.getApiKey(provider);
+            if (!apiKey) {
+                throw new Error(`${this._providerDisplayName(provider)} API key not configured. Please add it in Settings.`);
+            }
         }
 
         const wantsStream = typeof onStream === 'function';

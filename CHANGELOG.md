@@ -9,5 +9,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **ChatGPT Plus/Pro provider** - Users can now log in with their OpenAI account and use their ChatGPT subscription instead of a pay-per-use API key. Select "ChatGPT Plus/Pro" in Settings > AI Assistant to get started.
-- OAuth token manager (`js/system/ai-oauth.js`) with popup-based login flow, automatic token refresh, and encrypted token storage.
-- Vercel serverless functions (`api/ai-oauth/callback.js`, `api/ai-oauth/refresh.js`) for secure server-side OAuth token exchange.
+- Session auth manager (`js/system/ai-oauth.js`) with device-code login flow and server-managed session state.
+- Production-ready PHP endpoints in `public/api/ai-oauth/` for device auth start/poll, status, logout, model listing, and chat proxying.

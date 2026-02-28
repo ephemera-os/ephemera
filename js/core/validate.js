@@ -406,7 +406,7 @@ const EphemeraValidate = {
                     return false;
                 }
             },
-            aiProvider: (v) => ['openrouter', 'openai', 'anthropic', 'google'].includes(String(v)),
+            aiProvider: (v) => ['openrouter', 'openai', 'anthropic', 'google', 'chatgpt'].includes(String(v)),
             openrouterApiKey: (v) => typeof v === 'string' && v.length < 4096,
             openaiApiKey: (v) => typeof v === 'string' && v.length < 4096,
             anthropicApiKey: (v) => typeof v === 'string' && v.length < 4096,

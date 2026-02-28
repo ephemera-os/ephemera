@@ -77,7 +77,7 @@ ephemera/
 │   │   ├── session.js      # Session management
 │   │   ├── network.js      # HTTP client
 │   │   ├── ai.js           # AI integration (multi-provider)
-│   │   ├── ai-oauth.js     # OAuth for AI subscriptions (ChatGPT Plus/Pro)
+│   │   ├── ai-oauth.js     # ChatGPT Plus/Pro anonymous server-session auth
 │   │   ├── sync-rest.js    # REST sync provider
 │   │   ├── sync-manager.js # Sync orchestrator
 │   │   └── data-management.js # Backup & profile export/import
@@ -94,7 +94,7 @@ ephemera/
 
 ### Environment Variables (optional)
 
-Create `.env.local` for error tracking and ChatGPT OAuth:
+Create `.env.local` for error tracking and optional ChatGPT Plus/Pro server-session auth:
 
 ```bash
 # Error Tracking (optional)
@@ -103,12 +103,13 @@ VITE_SENTRY_ENVIRONMENT=development
 # Release label included in Sentry events (defaults to app version)
 VITE_SENTRY_RELEASE=2.0.0-local
 
-# ChatGPT Plus/Pro OAuth (optional - requires Vercel for serverless functions)
-VITE_OPENAI_OAUTH_CLIENT_ID=your-client-id
+# ChatGPT Plus/Pro server-session auth (optional)
 VITE_APP_URL=https://your-domain.com
-# Server-side only (set in Vercel environment, not in .env.local)
-# OPENAI_OAUTH_CLIENT_ID=your-client-id
-# OPENAI_OAUTH_CLIENT_SECRET=your-client-secret
+# Optional override (defaults to /api for root, or <BASE_URL>/api for subpath builds)
+# VITE_AI_OAUTH_API_BASE_PATH=/ephemera/api
+
+# Server-side only (set in PHP env/config, etc. — not in .env.local)
+# OPENAI_CODEX_CLIENT_ID=app_EMoamEEZ73f0CkXaXp7hrann
 ```
 
 ### CI Sourcemap Upload (Sentry)
@@ -218,5 +219,5 @@ Bundled third-party assets are documented in [THIRD_PARTY_NOTICES.md](THIRD_PART
 
 - [CodeMirror](https://codemirror.net/) - Code editor
 - [OpenRouter](https://openrouter.ai/) - AI API
-- [OpenAI](https://openai.com/) - AI API & ChatGPT OAuth
+- [OpenAI](https://openai.com/) - AI APIs and ChatGPT services
 - [Sentry](https://sentry.io/) - Error tracking

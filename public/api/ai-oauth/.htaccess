@@ -1,0 +1,35 @@
+DirectoryIndex status.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Serve existing files directly.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Extensionless AI auth/session endpoints.
+    RewriteRule ^status$ status.php [QSA,L]
+    RewriteRule ^device-start$ device-start.php [QSA,L]
+    RewriteRule ^device-poll$ device-poll.php [QSA,L]
+    RewriteRule ^logout$ logout.php [QSA,L]
+    RewriteRule ^models$ models.php [QSA,L]
+    RewriteRule ^chat$ chat.php [QSA,L]
+
+    # Legacy endpoints preserved as explicit deprecation responses.
+    RewriteRule ^callback$ callback.php [QSA,L]
+    RewriteRule ^refresh$ refresh.php [QSA,L]
+</IfModule>
+
+<IfModule mod_authz_core.c>
+    <FilesMatch "^(common\.php|config\.php|config\.example\.php)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    <FilesMatch "^(common\.php|config\.php|config\.example\.php)$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+</IfModule>

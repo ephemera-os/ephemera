@@ -1037,7 +1037,7 @@ return {
 Integrate AI capabilities into your apps.
 
 ```javascript
-// Check if AI is configured (works for both API key and OAuth providers)
+// Check if AI is configured (works for both API key and session-auth providers)
 const isConfigured = await EphemeraAI.isConfigured();
 if (!isConfigured) {
     EphemeraNotifications.warning('Please configure an AI provider in Settings');
