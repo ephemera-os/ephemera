@@ -338,7 +338,12 @@ const EphemeraAI = {
     async isConfigured(provider = null) {
         const cfg = this._getProviderConfig(provider);
         if (cfg.authType === 'oauth') {
-            return window.EphemeraAIOAuth?.isConnected?.(cfg.oauthProvider) || false;
+            const oauth = window.EphemeraAIOAuth;
+            if (typeof oauth?.getAccessToken === 'function') {
+                const token = await oauth.getAccessToken(cfg.oauthProvider);
+                return Boolean(token);
+            }
+            return oauth?.isConnected?.(cfg.oauthProvider) || false;
         }
         const key = await this.getApiKey(provider);
         return !!key;

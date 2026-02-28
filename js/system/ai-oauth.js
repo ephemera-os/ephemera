@@ -1,6 +1,7 @@
 const AI_OAUTH_STORAGE_KEY = 'ai_oauth_tokens';
 const AI_OAUTH_SESSION_CACHE_KEY = 'ephemera_ai_oauth_cache';
 const AI_OAUTH_PENDING_KEY = 'ephemera_ai_oauth_pending';
+const AI_OAUTH_PENDING_COOKIE_KEY = 'ephemera_ai_oauth_pending_pkce';
 const AI_OAUTH_PENDING_MAX_AGE_MS = 15 * 60 * 1000;
 const AI_OAUTH_TOKEN_EXPIRY_SKEW_MS = 30 * 1000;
 
@@ -96,12 +97,12 @@ const EphemeraAIOAuth = {
         const codeChallenge = await this._createCodeChallenge(codeVerifier);
         const redirectUri = `${window.location.origin}/api/ai-oauth/callback`;
 
-        sessionStorage.setItem(AI_OAUTH_PENDING_KEY, JSON.stringify({
+        this._writePending({
             provider,
             state,
             codeVerifier,
             createdAt: Date.now()
-        }));
+        });
 
         const authUrl = new URL(config.authorizeUrl);
         authUrl.searchParams.set('client_id', clientId);
@@ -123,7 +124,7 @@ const EphemeraAIOAuth = {
             );
 
             if (!popup) {
-                sessionStorage.removeItem(AI_OAUTH_PENDING_KEY);
+                this._clearPending();
                 reject(new Error('Popup was blocked. Please allow popups for this site.'));
                 return;
             }
@@ -138,13 +139,13 @@ const EphemeraAIOAuth = {
                 clearInterval(pollClosed);
 
                 if (data.error) {
-                    sessionStorage.removeItem(AI_OAUTH_PENDING_KEY);
+                    this._clearPending();
                     reject(new Error(data.error_description || data.error));
                     return;
                 }
 
-                const pending = _aiOAuthSafeJsonParse(sessionStorage.getItem(AI_OAUTH_PENDING_KEY));
-                sessionStorage.removeItem(AI_OAUTH_PENDING_KEY);
+                const pending = this._readPending();
+                this._clearPending();
 
                 if (!pending || pending.state !== data.state) {
                     reject(new Error('OAuth state mismatch. Please try again.'));
@@ -182,7 +183,7 @@ const EphemeraAIOAuth = {
                 if (popup.closed) {
                     clearInterval(pollClosed);
                     window.removeEventListener('message', onMessage);
-                    sessionStorage.removeItem(AI_OAUTH_PENDING_KEY);
+                    this._clearPending();
                     reject(new Error('OAuth popup was closed before completing sign-in.'));
                 }
             }, 500);
@@ -260,6 +261,56 @@ const EphemeraAIOAuth = {
         return _aiOAuthBytesToBase64Url(new Uint8Array(digest));
     },
 
+    _writePending(pending) {
+        sessionStorage.setItem(AI_OAUTH_PENDING_KEY, JSON.stringify(pending));
+        this._writePendingCookie(pending);
+    },
+
+    _readPending() {
+        const pending = _aiOAuthSafeJsonParse(sessionStorage.getItem(AI_OAUTH_PENDING_KEY), null);
+        if (!pending || typeof pending !== 'object') {
+            return null;
+        }
+        const createdAt = Number(pending.createdAt || 0);
+        if (!createdAt || Date.now() - createdAt > AI_OAUTH_PENDING_MAX_AGE_MS) {
+            this._clearPending();
+            return null;
+        }
+        return pending;
+    },
+
+    _clearPending() {
+        sessionStorage.removeItem(AI_OAUTH_PENDING_KEY);
+        this._clearPendingCookie();
+    },
+
+    _pendingCookieAttributes() {
+        const secure = window.location?.protocol === 'https:' ? '; Secure' : '';
+        return `Path=/api/ai-oauth/callback; SameSite=Lax${secure}`;
+    },
+
+    _writePendingCookie(pending) {
+        if (typeof document === 'undefined') return;
+        try {
+            const payload = JSON.stringify({
+                provider: String(pending?.provider || ''),
+                state: String(pending?.state || ''),
+                codeVerifier: String(pending?.codeVerifier || ''),
+                createdAt: Number(pending?.createdAt || Date.now())
+            });
+            const encoded = encodeURIComponent(payload);
+            const maxAgeSeconds = Math.max(60, Math.floor(AI_OAUTH_PENDING_MAX_AGE_MS / 1000));
+            document.cookie = `${AI_OAUTH_PENDING_COOKIE_KEY}=${encoded}; ${this._pendingCookieAttributes()}; Max-Age=${maxAgeSeconds}`;
+        } catch {
+            // Ignore cookie write failures and rely on sessionStorage fallback.
+        }
+    },
+
+    _clearPendingCookie() {
+        if (typeof document === 'undefined') return;
+        document.cookie = `${AI_OAUTH_PENDING_COOKIE_KEY}=; ${this._pendingCookieAttributes()}; Max-Age=0`;
+    },
+
     _loadSessionCache() {
         const cached = _aiOAuthSafeJsonParse(sessionStorage.getItem(AI_OAUTH_SESSION_CACHE_KEY));
         if (!cached || typeof cached !== 'object') return;
@@ -329,7 +380,7 @@ const EphemeraAIOAuth = {
         this._initialized = false;
         this._initPromise = null;
         sessionStorage.removeItem(AI_OAUTH_SESSION_CACHE_KEY);
-        sessionStorage.removeItem(AI_OAUTH_PENDING_KEY);
+        this._clearPending();
     }
 };
 

@@ -94,6 +94,9 @@ EphemeraApps.register({
             `,
             init: async () => {
                 const lifecycle = createAppLifecycle();
+                if (!window.EphemeraCollab && typeof window.EphemeraModuleLoader?.ensureCollab === 'function') {
+                    await window.EphemeraModuleLoader.ensureCollab().catch(() => false);
+                }
 
                 const textarea = document.getElementById(`notepad-textarea-${windowId}`);
                 const filenameInput = document.getElementById(`notepad-filename-${windowId}`);

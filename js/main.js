@@ -1,8 +1,59 @@
 const BOOT_TO_LOGIN_SPAN_KEY = '__ephemeraBootToLoginSpan';
+const OPTIONAL_MODULE_IMPORTERS = Object.freeze({
+    telemetry: () => import('./core/telemetry.js'),
+    git: () => import('./system/git.js'),
+    collab: () => import('./system/collab.js')
+});
+const optionalModulePromises = new Map();
+
+function ensureOptionalModuleLoaded(name) {
+    const moduleName = String(name || '').trim();
+    const importer = OPTIONAL_MODULE_IMPORTERS[moduleName];
+    if (!importer) return Promise.resolve(false);
+
+    if (optionalModulePromises.has(moduleName)) {
+        return optionalModulePromises.get(moduleName);
+    }
+
+    const promise = importer()
+        .then(() => true)
+        .catch((error) => {
+            optionalModulePromises.delete(moduleName);
+            console.warn(`[Ephemera] Failed to load optional module "${moduleName}":`, error);
+            return false;
+        });
+
+    optionalModulePromises.set(moduleName, promise);
+    return promise;
+}
+
+function exposeModuleLoader() {
+    window.EphemeraModuleLoader = {
+        ensureGit: () => ensureOptionalModuleLoaded('git'),
+        ensureCollab: () => ensureOptionalModuleLoaded('collab'),
+        ensureTelemetry: () => ensureOptionalModuleLoaded('telemetry')
+    };
+}
+
+function prewarmOptionalModules() {
+    const warm = () => {
+        ensureOptionalModuleLoaded('git');
+        ensureOptionalModuleLoaded('collab');
+    };
+
+    if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(() => warm(), { timeout: 3000 });
+        return;
+    }
+
+    setTimeout(warm, 0);
+}
 
 async function initEphemera() {
     initPerformanceMonitoring();
     startBootToLoginMetric();
+    exposeModuleLoader();
+    prewarmOptionalModules();
 
     initTelemetry();
     
@@ -107,17 +158,21 @@ function initServiceWorker() {
         });
 }
 
-function initTelemetry() {
-    if (window.EphemeraTelemetry) {
-        try {
-            window.EphemeraTelemetry.init({
-                dsn: import.meta.env?.VITE_SENTRY_DSN,
-                environment: import.meta.env?.VITE_SENTRY_ENVIRONMENT || import.meta.env?.MODE || 'development',
-                release: import.meta.env?.VITE_SENTRY_RELEASE || '2.0.0'
-            });
-        } catch (e) {
-            console.warn('[Ephemera] Failed to initialize telemetry:', e);
-        }
+async function initTelemetry() {
+    const dsn = String(import.meta.env?.VITE_SENTRY_DSN || '').trim();
+    if (!dsn) return;
+
+    const loaded = await ensureOptionalModuleLoaded('telemetry');
+    if (!loaded || !window.EphemeraTelemetry) return;
+
+    try {
+        window.EphemeraTelemetry.init({
+            dsn,
+            environment: import.meta.env?.VITE_SENTRY_ENVIRONMENT || import.meta.env?.MODE || 'development',
+            release: import.meta.env?.VITE_SENTRY_RELEASE || '2.0.0'
+        });
+    } catch (e) {
+        console.warn('[Ephemera] Failed to initialize telemetry:', e);
     }
 }
 

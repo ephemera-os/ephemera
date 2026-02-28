@@ -4,7 +4,6 @@ import '../js/core/storage.js';
 import '../js/core/sanitize.js';
 import '../js/core/crypto.js';
 import '../js/core/validate.js';
-import '../js/core/telemetry.js';
 import '../js/core/performance-monitor.js';
 import '../js/core/boot.js';
 
@@ -45,8 +44,6 @@ import '../js/system/sync-rest.js';
 import '../js/system/sync-manager.js';
 import '../js/system/p2p.js';
 import '../js/system/share-links.js';
-import '../js/system/collab.js';
-import '../js/system/git.js';
 import '../js/system/session-recovery.js';
 import '../js/system/system-tray.js';
 import '../js/system/app-lifecycle.js';
@@ -57,23 +54,17 @@ import '../js/apps/notepad.js';
 import '../js/apps/terminal.js';
 import '../js/apps/files.js';
 import '../js/apps/file-history.js';
-import '../js/apps/settings.js';
-import '../js/apps/code.js';
+// Lazy-loaded via app-registry.js: settings, code
 import '../js/apps/git-panel.js';
 import '../js/apps/browser.js';
 // Lazy-loaded apps (dynamically imported via app-registry.js)
-// calendar, snake, memory, imageviewer, sysmonitor, musicplayer, paint, minesweeper
-import '../js/apps/appmanager.js';
+// calendar, snake, memory, imageviewer, sysmonitor, musicplayer, paint, minesweeper,
+// settings, code, aichat, appmanager, chess, pdfviewer, passwordmanager, videoplayer, voicerecorder
 import '../js/apps/trash.js';
 import '../js/apps/todo.js';
-import '../js/apps/aichat.js';
 import '../js/apps/pomodoro.js';
-import '../js/apps/videoplayer.js';
+// Lazy-loaded via app-registry.js: videoplayer, pdfviewer, passwordmanager, voicerecorder
 import '../js/apps/tetris.js';
-import '../js/apps/pdfviewer.js';
-import '../js/apps/passwordmanager.js';
-import '../js/apps/voicerecorder.js';
-import '../js/apps/chess.js';
 import '../js/apps/contacts.js';
 import '../js/apps/worldclock.js';
 import '../js/apps/unitconverter.js';

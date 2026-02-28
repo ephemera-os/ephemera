@@ -370,6 +370,12 @@ EphemeraApps.register({
             init: async () => {
                 // Use app lifecycle for clean resource management
                 const lifecycle = createAppLifecycle();
+                if (!window.EphemeraGit && typeof window.EphemeraModuleLoader?.ensureGit === 'function') {
+                    await window.EphemeraModuleLoader.ensureGit().catch(() => false);
+                }
+                if (!window.EphemeraCollab && typeof window.EphemeraModuleLoader?.ensureCollab === 'function') {
+                    await window.EphemeraModuleLoader.ensureCollab().catch(() => false);
+                }
 
                 const fileTree = document.getElementById(`file-tree-${windowId}`);
                 const tabsContainer = document.getElementById(`ide-tabs-${windowId}`);

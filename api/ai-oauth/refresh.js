@@ -33,15 +33,17 @@ export default async function handler(req, res) {
     }
 
     try {
+        const tokenBody = new URLSearchParams({
+            grant_type: 'refresh_token',
+            client_id: clientId,
+            client_secret: clientSecret,
+            refresh_token: String(refresh_token)
+        });
+
         const tokenRes = await fetch('https://auth0.openai.com/oauth/token', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                grant_type: 'refresh_token',
-                client_id: clientId,
-                client_secret: clientSecret,
-                refresh_token
-            })
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: tokenBody.toString()
         });
 
         const tokenData = await tokenRes.json();

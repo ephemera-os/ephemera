@@ -41,6 +41,7 @@ describe('EphemeraAI provider routing and usage tracking', () => {
     afterEach(() => {
         vi.unstubAllGlobals();
         window.EphemeraAIStreamWorker = undefined;
+        delete window.EphemeraAIOAuth;
     });
 
     it('routes chat requests to OpenAI endpoint when provider is openai', async () => {
@@ -78,6 +79,20 @@ describe('EphemeraAI provider routing and usage tracking', () => {
 
         expect(EphemeraAI.getModelForUseCase('code')).toBe('gpt-4o-mini');
         expect(EphemeraAI.getModelForUseCase('chat')).toBe('gpt-4o-mini');
+    });
+
+    it('treats refreshable OAuth sessions as configured', async () => {
+        window.EphemeraState.updateSetting('aiProvider', 'chatgpt');
+        window.EphemeraAIOAuth = {
+            getAccessToken: vi.fn(async () => 'access-token-from-refresh'),
+            isConnected: vi.fn(() => false)
+        };
+
+        const configured = await EphemeraAI.isConfigured();
+
+        expect(configured).toBe(true);
+        expect(window.EphemeraAIOAuth.getAccessToken).toHaveBeenCalledWith('chatgpt');
+        expect(window.EphemeraAIOAuth.isConnected).not.toHaveBeenCalled();
     });
 
     it('tracks and resets session usage counters', async () => {

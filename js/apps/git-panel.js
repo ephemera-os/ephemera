@@ -104,6 +104,9 @@ EphemeraApps.register({
             `,
             init: async () => {
                 const lifecycle = createAppLifecycle();
+                if (!window.EphemeraGit && typeof window.EphemeraModuleLoader?.ensureGit === 'function') {
+                    await window.EphemeraModuleLoader.ensureGit().catch(() => false);
+                }
                 const home = window.EphemeraFS?.homeDir || '/home/user';
                 const defaultPath = `${home}/projects/demo-repo`;
 
