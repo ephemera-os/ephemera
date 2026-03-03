@@ -15,6 +15,7 @@ if ($method === 'OPTIONS') {
 if ($method !== 'POST') {
     aiOAuthSendJson(405, ['error' => 'Method Not Allowed']);
 }
+aiOAuthRequireJsonContentType();
 
 aiOAuthStartSession();
 
@@ -172,6 +173,9 @@ if ($accessToken === '' || $refreshToken === '') {
 $idClaims = aiOAuthDecodeJwtClaims((string)($tokenData['id_token'] ?? ''));
 $accessClaims = aiOAuthDecodeJwtClaims($accessToken);
 $claimsForIdentity = !empty($idClaims) ? $idClaims : $accessClaims;
+if (!empty($claimsForIdentity) && !aiOAuthValidateJwtIssuer($claimsForIdentity, AI_CHATGPT_ISSUER)) {
+    $claimsForIdentity = [];
+}
 
 aiOAuthSaveAuthRecord([
     'access_token' => $accessToken,

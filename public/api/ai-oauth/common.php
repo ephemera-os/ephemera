@@ -15,6 +15,13 @@ const AI_CHATGPT_REFRESH_SKEW_SECONDS = 30;
 const AI_OAUTH_HTTP_DEFAULT_TIMEOUT_SECONDS = 25;
 const AI_OAUTH_HTTP_CONNECT_TIMEOUT_SECONDS = 10;
 const AI_CHATGPT_RESPONSES_TIMEOUT_SECONDS = 120;
+const AI_CHATGPT_ALLOWED_MODELS = [
+    'gpt-5.3-codex',
+    'gpt-5.2-codex',
+    'gpt-5.2',
+    'gpt-5.1-codex',
+    'gpt-5.1-codex-mini'
+];
 
 function aiOAuthGetConfigValue(string $key): string
 {
@@ -208,6 +215,18 @@ function aiOAuthReadJsonBody(): array
     return is_array($decoded) ? $decoded : [];
 }
 
+function aiOAuthRequireJsonContentType(): void
+{
+    $contentType = aiOAuthGetHeader('Content-Type');
+    $mediaType = strtolower(trim(explode(';', $contentType, 2)[0]));
+    if ($mediaType !== 'application/json') {
+        aiOAuthSendJson(415, [
+            'error' => 'unsupported_media_type',
+            'error_description' => 'Content-Type must be application/json.'
+        ]);
+    }
+}
+
 function aiOAuthApplyCorsHeaders(string $allowedOrigin): void
 {
     if ($allowedOrigin === '') return;
@@ -345,6 +364,12 @@ function aiOAuthDecodeJwtClaims(string $token): array
 
     $decoded = json_decode($payloadRaw, true);
     return is_array($decoded) ? $decoded : [];
+}
+
+function aiOAuthValidateJwtIssuer(array $claims, string $expectedIssuer): bool
+{
+    $iss = trim((string)($claims['iss'] ?? ''));
+    return $iss !== '' && rtrim($iss, '/') === rtrim($expectedIssuer, '/');
 }
 
 function aiOAuthExtractAccountId(array $claims): string
@@ -562,6 +587,9 @@ function aiOAuthRefreshAccessTokenIfNeeded(bool $force = false): array
     $idClaims = aiOAuthDecodeJwtClaims((string)($tokenData['id_token'] ?? ''));
     $accessClaims = aiOAuthDecodeJwtClaims($accessToken);
     $claimsForIdentity = !empty($idClaims) ? $idClaims : $accessClaims;
+    if (!empty($claimsForIdentity) && !aiOAuthValidateJwtIssuer($claimsForIdentity, AI_CHATGPT_ISSUER)) {
+        $claimsForIdentity = [];
+    }
     $user = aiOAuthExtractUser($claimsForIdentity);
     if ((string)($user['email'] ?? '') === '' && (string)($user['name'] ?? '') === '') {
         $user = is_array($record['user'] ?? null) ? $record['user'] : ['email' => '', 'name' => ''];

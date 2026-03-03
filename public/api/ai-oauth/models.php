@@ -25,13 +25,17 @@ if (empty($status['connected'])) {
     ]);
 }
 
-$models = [
-    ['id' => 'gpt-5.3-codex', 'name' => 'GPT-5.3 Codex'],
-    ['id' => 'gpt-5.2-codex', 'name' => 'GPT-5.2 Codex'],
-    ['id' => 'gpt-5.2', 'name' => 'GPT-5.2'],
-    ['id' => 'gpt-5.1-codex', 'name' => 'GPT-5.1 Codex'],
-    ['id' => 'gpt-5.1-codex-mini', 'name' => 'GPT-5.1 Codex Mini']
+$modelNames = [
+    'gpt-5.3-codex' => 'GPT-5.3 Codex',
+    'gpt-5.2-codex' => 'GPT-5.2 Codex',
+    'gpt-5.2' => 'GPT-5.2',
+    'gpt-5.1-codex' => 'GPT-5.1 Codex',
+    'gpt-5.1-codex-mini' => 'GPT-5.1 Codex Mini'
 ];
+$models = [];
+foreach (AI_CHATGPT_ALLOWED_MODELS as $id) {
+    $models[] = ['id' => $id, 'name' => $modelNames[$id] ?? $id];
+}
 
 aiOAuthSendJson(200, [
     'models' => $models,

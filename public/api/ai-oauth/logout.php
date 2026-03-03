@@ -15,6 +15,7 @@ if ($method === 'OPTIONS') {
 if ($method !== 'POST') {
     aiOAuthSendJson(405, ['error' => 'Method Not Allowed']);
 }
+aiOAuthRequireJsonContentType();
 
 aiOAuthStartSession();
 aiOAuthClearAuthRecord();

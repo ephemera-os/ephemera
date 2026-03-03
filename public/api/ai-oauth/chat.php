@@ -18,6 +18,7 @@ if ($method !== 'POST') {
         'message' => 'Method Not Allowed'
     ]);
 }
+aiOAuthRequireJsonContentType();
 
 aiOAuthStartSession();
 $authResult = aiOAuthRefreshAccessTokenIfNeeded(false);
@@ -36,6 +37,14 @@ $payload = aiOAuthReadJsonBody();
 $model = trim((string)($payload['model'] ?? 'gpt-5.2-codex'));
 if ($model === '') {
     $model = 'gpt-5.2-codex';
+}
+if (!in_array($model, AI_CHATGPT_ALLOWED_MODELS, true)) {
+    $message = 'Unsupported model: ' . $model;
+    aiOAuthSendJson(400, [
+        'error' => 'invalid_model',
+        'error_description' => $message,
+        'message' => $message
+    ]);
 }
 
 $rawMessages = $payload['messages'] ?? null;
