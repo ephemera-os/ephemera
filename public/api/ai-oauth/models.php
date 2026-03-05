@@ -28,11 +28,19 @@ if (empty($authResult['connected']) || !is_array($authResult['record'] ?? null))
 $record = $authResult['record'];
 $catalog = aiOAuthGetAvailableModels($record);
 $models = is_array($catalog['models'] ?? null) ? $catalog['models'] : [];
+$catalogStatus = (int)($catalog['status'] ?? 0);
+$activeRecord = aiOAuthGetAuthRecord();
+if ($catalogStatus === 401 || $catalogStatus === 403 || !is_array($activeRecord)) {
+    aiOAuthSendJson(401, [
+        'error' => 'not_connected',
+        'error_description' => 'ChatGPT is not connected for this session.'
+    ]);
+}
 
 aiOAuthSendJson(200, [
     'models' => $models,
     'connected' => true,
-    'expiresAt' => ((int)($record['expires_at'] ?? 0)) * 1000,
+    'expiresAt' => ((int)($activeRecord['expires_at'] ?? 0)) * 1000,
     'catalogSource' => (string)($catalog['source'] ?? 'remote'),
     'catalogError' => (string)($catalog['error'] ?? '')
 ]);

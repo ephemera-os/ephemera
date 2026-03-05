@@ -775,12 +775,16 @@ function aiOAuthGetAvailableModels(array $record): array
 {
     $result = aiOAuthFetchRemoteModels($record, false);
     $models = is_array($result['models'] ?? null) ? $result['models'] : [];
+    $error = aiOAuthNormalizeErrorString($result['error'] ?? '');
+    if ($error === '' && empty($result['ok'])) {
+        $error = 'Failed to fetch remote model catalog.';
+    }
     return [
         'ok' => !empty($result['ok']),
         'models' => $models,
         'source' => (string)($result['source'] ?? 'remote'),
         'status' => (int)($result['status'] ?? 0),
-        'error' => (string)($result['error'] ?? 'Failed to fetch remote model catalog.')
+        'error' => $error
     ];
 }
 
