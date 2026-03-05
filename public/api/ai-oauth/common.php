@@ -248,6 +248,15 @@ function aiOAuthHttpRequest(string $method, string $url, array $headers = [], st
     $requestTimeout = max(1, $timeoutSeconds);
     $connectTimeout = max(1, min(AI_OAUTH_HTTP_CONNECT_TIMEOUT_SECONDS, $requestTimeout));
 
+    $allowUrlFopen = true;
+    if (function_exists('ini_get')) {
+        $allowUrlFopen = (bool)ini_get('allow_url_fopen');
+    }
+
+    if (!function_exists('curl_init') && !$allowUrlFopen) {
+        return ['status' => 0, 'body' => '', 'error' => 'Server requires the cURL extension or allow_url_fopen enabled for outbound HTTP requests.'];
+    }
+
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
         if ($ch === false) {

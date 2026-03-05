@@ -157,6 +157,18 @@ if ($accountId !== '') {
     $headers[] = 'ChatGPT-Account-Id: ' . $accountId;
 }
 
+$maxExec = 0;
+if (function_exists('ini_get')) {
+    $maxExec = (int)ini_get('max_execution_time');
+}
+if (
+    $maxExec > 0
+    && $maxExec < AI_CHATGPT_RESPONSES_TIMEOUT_SECONDS + 5
+    && function_exists('set_time_limit')
+) {
+    @set_time_limit(AI_CHATGPT_RESPONSES_TIMEOUT_SECONDS + 5);
+}
+
 $upstreamResponse = aiOAuthHttpRequest('POST', AI_CHATGPT_RESPONSES_URL, $headers, $encodedBody, AI_CHATGPT_RESPONSES_TIMEOUT_SECONDS);
 if ($upstreamResponse['error'] !== '') {
     $message = $upstreamResponse['error'];

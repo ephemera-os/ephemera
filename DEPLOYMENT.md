@@ -267,6 +267,7 @@ VITE_APP_URL=https://example.com
    - `models.php` response includes `connected`, `expiresAt`, `catalogSource` (`remote` or `cache`), and `catalogError` for observability (`catalogError` is empty on healthy responses and populated on catalog-fetch failures).
    - If upstream catalog/auth checks return `401`/`403`, the session auth record is cleared and `models.php` returns `401 not_connected` so clients can prompt re-auth immediately.
    - `chat.php` validates requested model IDs against the current catalog and returns `400 invalid_model` with `available_models` when a stale/unknown model is sent.
+   - `chat.php` only calls `set_time_limit` when that function exists, so hosts that disable it via PHP `disable_functions` will not crash the endpoint.
    - `callback.php` and `refresh.php` are legacy compatibility endpoints that intentionally return `410 Gone`.
 
 ### 5. If your site root also has rewrites
