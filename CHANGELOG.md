@@ -15,3 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - ChatGPT model catalogs are now fetched dynamically from the authenticated `/backend-api/codex/models` endpoint (with short session cache), so picker options reflect account/workspace availability.
 - ChatGPT refresh-token requests now match Codex auth behavior by omitting the custom scope override from refresh payloads.
+
+### Fixed
+- `ai-oauth/models` now returns `401 not_connected` when catalog/auth checks clear the session, instead of reporting a stale `connected: true` state.
+- `catalogError` now reflects real catalog fetch failures only, and no longer reports a fallback error string on successful catalog responses.

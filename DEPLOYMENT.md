@@ -261,6 +261,14 @@ VITE_APP_URL=https://example.com
    - If env vars are unavailable, create `public_html/ephemera/api/ai-oauth/config.php`
      from `config.example.php` and set values there.
 
+3. Runtime behavior (important for integrations):
+   - `models.php` now returns the authenticated, account-scoped model catalog from ChatGPT Codex (`/backend-api/codex/models`) with short server-side session caching.
+   - Model IDs are plan/workspace aware and can change over time, so do not hardcode ChatGPT model IDs in custom integrations.
+   - `models.php` response includes `connected`, `expiresAt`, `catalogSource` (`remote` or `cache`), and `catalogError` for observability (`catalogError` is empty on healthy responses and populated on catalog-fetch failures).
+   - If upstream catalog/auth checks return `401`/`403`, the session auth record is cleared and `models.php` returns `401 not_connected` so clients can prompt re-auth immediately.
+   - `chat.php` validates requested model IDs against the current catalog and returns `400 invalid_model` with `available_models` when a stale/unknown model is sent.
+   - `callback.php` and `refresh.php` are legacy compatibility endpoints that intentionally return `410 Gone`.
+
 ### 5. If your site root also has rewrites
 
 If your main site already has a global catch-all rewrite, exclude the app subpath first:

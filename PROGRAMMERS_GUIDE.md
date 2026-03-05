@@ -1060,6 +1060,27 @@ await EphemeraAI.chat(messages, model, (chunk, accumulated) => {
 });
 ```
 
+### ChatGPT Plus/Pro Model Discovery
+
+When using the `chatgpt` provider, model lists are dynamic and account-scoped.
+Do not hardcode `gpt-*` model IDs.
+
+```javascript
+// Fetch currently available ChatGPT models for the signed-in session
+const chatgptModels = await EphemeraAI.getModels(true, 'chatgpt');
+if (!chatgptModels.length) {
+    throw new Error('No ChatGPT models available for this account/workspace');
+}
+
+const selectedModel = chatgptModels[0].id;
+const answer = await EphemeraAI.chat(messages, selectedModel);
+```
+
+For direct endpoint integrations (without `EphemeraAI`), `/api/ai-oauth/models` can return `401` with `error: "not_connected"` when the server clears an invalid/expired auth session; handle that by starting sign-in again.
+On successful catalog reads, `catalogError` is intentionally empty and should only be treated as a diagnostic signal when non-empty.
+
+`EphemeraAI` also enforces a validated max-token setting range of `100..128000`.
+
 ### Rate Limiting
 
 The AI API has built-in rate limiting (10 requests/minute, 500ms minimum between requests):
