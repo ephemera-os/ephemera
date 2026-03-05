@@ -104,6 +104,66 @@ describe('EphemeraAI provider routing and usage tracking', () => {
         expect(String(options.headers.Authorization || '')).toBe('');
     });
 
+    it('normalizes dynamic chatgpt model catalogs from the server proxy', async () => {
+        window.EphemeraState.updateSetting('aiProvider', 'chatgpt');
+        window.EphemeraAIOAuth = {
+            refreshStatus: vi.fn(async () => ({ connected: true })),
+            isConnected: vi.fn(() => true)
+        };
+
+        const fetchMock = vi.fn(async () => ({
+            ok: true,
+            json: async () => ({
+                models: [
+                    { slug: 'gpt-5.3-codex', display_name: 'GPT-5.3 Codex' },
+                    { id: 'gpt-5.2-codex', name: 'GPT-5.2 Codex' }
+                ]
+            })
+        }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const models = await EphemeraAI.getModels(true, 'chatgpt');
+
+        expect(models).toEqual([
+            { id: 'gpt-5.2-codex', name: 'GPT-5.2 Codex' },
+            { id: 'gpt-5.3-codex', name: 'GPT-5.3 Codex' }
+        ]);
+
+        const [url, options] = fetchMock.mock.calls[0];
+        expect(url).toBe('/api/ai-oauth/models');
+        expect(options.credentials).toBe('same-origin');
+    });
+
+    it('replaces unavailable chatgpt selections with the first dynamic model', async () => {
+        window.EphemeraState.updateSetting('aiProvider', 'chatgpt');
+        window.EphemeraAIOAuth = {
+            refreshStatus: vi.fn(async () => ({ connected: true })),
+            isConnected: vi.fn(() => true)
+        };
+
+        const fetchMock = vi.fn(async () => ({
+            ok: true,
+            json: async () => ({
+                models: [
+                    { id: 'gpt-5.3-codex', name: 'GPT-5.3 Codex' },
+                    { id: 'gpt-5.2-codex', name: 'GPT-5.2 Codex' }
+                ]
+            })
+        }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const select = document.createElement('select');
+        document.body.appendChild(select);
+
+        await EphemeraAI.populateModelSelect(select, 'legacy-model-id', {
+            provider: 'chatgpt',
+            forceRefresh: true
+        });
+
+        expect(select.value).toBe('gpt-5.2-codex');
+        expect(select.querySelector('option[value=\"legacy-model-id\"]')).toBeNull();
+    });
+
     it('returns per-use-case model and falls back safely when default model mismatches provider', () => {
         window.EphemeraState.updateSetting('aiProvider', 'openai');
         window.EphemeraState.updateSetting('aiModel', 'openrouter/free');

@@ -9,19 +9,17 @@ const AI_CHATGPT_DEVICE_USERCODE_URL = AI_CHATGPT_ISSUER . '/api/accounts/device
 const AI_CHATGPT_DEVICE_TOKEN_URL = AI_CHATGPT_ISSUER . '/api/accounts/deviceauth/token';
 const AI_CHATGPT_OAUTH_TOKEN_URL = AI_CHATGPT_ISSUER . '/oauth/token';
 const AI_CHATGPT_DEVICE_REDIRECT_URI = AI_CHATGPT_ISSUER . '/deviceauth/callback';
+const AI_CHATGPT_MODELS_URL = 'https://chatgpt.com/backend-api/codex/models';
 const AI_CHATGPT_RESPONSES_URL = 'https://chatgpt.com/backend-api/codex/responses';
+const AI_CHATGPT_MODELS_SESSION_KEY = 'ephemera_ai_chatgpt_models';
 const AI_CHATGPT_DEFAULT_DEVICE_TIMEOUT_SECONDS = 900;
 const AI_CHATGPT_REFRESH_SKEW_SECONDS = 30;
+const AI_CHATGPT_MODELS_CACHE_TTL_SECONDS = 300;
 const AI_OAUTH_HTTP_DEFAULT_TIMEOUT_SECONDS = 25;
 const AI_OAUTH_HTTP_CONNECT_TIMEOUT_SECONDS = 10;
+const AI_CHATGPT_MODELS_TIMEOUT_SECONDS = 25;
 const AI_CHATGPT_RESPONSES_TIMEOUT_SECONDS = 120;
-const AI_CHATGPT_ALLOWED_MODELS = [
-    'gpt-5.3-codex',
-    'gpt-5.2-codex',
-    'gpt-5.2',
-    'gpt-5.1-codex',
-    'gpt-5.1-codex-mini'
-];
+const AI_CHATGPT_DEFAULT_MODEL = 'gpt-5.3-codex';
 
 function aiOAuthGetConfigValue(string $key): string
 {
@@ -433,6 +431,7 @@ function aiOAuthClearAuthRecord(): void
 {
     unset($_SESSION[AI_CHATGPT_AUTH_SESSION_KEY]);
     unset($_SESSION[AI_CHATGPT_DEVICE_SESSION_KEY]);
+    unset($_SESSION[AI_CHATGPT_MODELS_SESSION_KEY]);
 }
 
 function aiOAuthNormalizeErrorString($value): string
@@ -560,8 +559,7 @@ function aiOAuthRefreshAccessTokenIfNeeded(bool $force = false): array
     $tokenResponse = aiOAuthPostJson(AI_CHATGPT_OAUTH_TOKEN_URL, [
         'grant_type' => 'refresh_token',
         'client_id' => aiOAuthGetClientId(),
-        'refresh_token' => $record['refresh_token'],
-        'scope' => 'openid profile email'
+        'refresh_token' => $record['refresh_token']
     ], ['User-Agent: ' . aiOAuthGetUserAgent()]);
 
     if ($tokenResponse['error'] !== '') {
@@ -620,6 +618,169 @@ function aiOAuthGetStatusPayload(): array
         'user' => $record['user'] ?? ['email' => '', 'name' => ''],
         'expiresAt' => ((int)($record['expires_at'] ?? 0)) * 1000,
         'accountId' => (string)($record['account_id'] ?? '')
+    ];
+}
+
+function aiOAuthGetModelsClientVersion(): string
+{
+    $version = trim(aiOAuthGetConfigValue('EPHEMERA_VERSION'));
+    if ($version === '') {
+        $version = '2.0.0';
+    }
+    return 'ephemera-' . $version;
+}
+
+function aiOAuthClearModelsCache(): void
+{
+    unset($_SESSION[AI_CHATGPT_MODELS_SESSION_KEY]);
+}
+
+function aiOAuthGetCachedModelsForAccount(string $accountId): ?array
+{
+    $cached = $_SESSION[AI_CHATGPT_MODELS_SESSION_KEY] ?? null;
+    if (!is_array($cached)) return null;
+
+    $cachedAccountId = trim((string)($cached['account_id'] ?? ''));
+    if ($cachedAccountId !== $accountId) {
+        return null;
+    }
+
+    $fetchedAt = (int)($cached['fetched_at'] ?? 0);
+    if ($fetchedAt <= 0 || (time() - $fetchedAt) > AI_CHATGPT_MODELS_CACHE_TTL_SECONDS) {
+        return null;
+    }
+
+    $models = $cached['models'] ?? null;
+    if (!is_array($models)) return null;
+    return $models;
+}
+
+function aiOAuthNormalizeRemoteModelRow(array $row): ?array
+{
+    $id = trim((string)($row['slug'] ?? $row['id'] ?? ''));
+    if ($id === '') return null;
+
+    $supportedInApi = $row['supported_in_api'] ?? true;
+    if (
+        $supportedInApi === false
+        || $supportedInApi === 0
+        || $supportedInApi === '0'
+        || strtolower(trim((string)$supportedInApi)) === 'false'
+    ) {
+        return null;
+    }
+
+    $visibility = strtolower(trim((string)($row['visibility'] ?? 'list')));
+    if ($visibility === 'hidden' || $visibility === 'internal' || $visibility === 'none') {
+        return null;
+    }
+
+    return [
+        'id' => $id,
+        'name' => trim((string)($row['display_name'] ?? $row['name'] ?? $id)),
+        'priority' => (int)($row['priority'] ?? PHP_INT_MAX)
+    ];
+}
+
+function aiOAuthFetchRemoteModels(array $record, bool $forceRefresh = false): array
+{
+    $accountId = trim((string)($record['account_id'] ?? ''));
+    if (!$forceRefresh) {
+        $cached = aiOAuthGetCachedModelsForAccount($accountId);
+        if (is_array($cached)) {
+            return [
+                'ok' => true,
+                'models' => $cached,
+                'source' => 'cache'
+            ];
+        }
+    }
+
+    $headers = [
+        'Authorization: Bearer ' . $record['access_token'],
+        'Accept: application/json',
+        'originator: ephemera',
+        'User-Agent: ' . aiOAuthGetUserAgent()
+    ];
+    if ($accountId !== '') {
+        $headers[] = 'ChatGPT-Account-ID: ' . $accountId;
+    }
+
+    $url = AI_CHATGPT_MODELS_URL . '?client_version=' . rawurlencode(aiOAuthGetModelsClientVersion());
+    $response = aiOAuthHttpRequest('GET', $url, $headers, '', AI_CHATGPT_MODELS_TIMEOUT_SECONDS);
+    if ($response['error'] !== '') {
+        return [
+            'ok' => false,
+            'models' => [],
+            'source' => 'remote',
+            'status' => 0,
+            'error' => $response['error']
+        ];
+    }
+
+    $status = (int)($response['status'] ?? 0);
+    $payload = aiOAuthDecodeJsonObject($response['body']);
+    if ($status < 200 || $status >= 300) {
+        if ($status === 401 || $status === 403) {
+            aiOAuthClearAuthRecord();
+        }
+        return [
+            'ok' => false,
+            'models' => [],
+            'source' => 'remote',
+            'status' => $status,
+            'error' => (string)($payload['error_description'] ?? $payload['error'] ?? 'Failed to fetch model catalog.')
+        ];
+    }
+
+    $models = [];
+    $rows = $payload['models'] ?? null;
+    if (is_array($rows)) {
+        foreach ($rows as $row) {
+            if (!is_array($row)) continue;
+            $normalized = aiOAuthNormalizeRemoteModelRow($row);
+            if ($normalized === null) continue;
+            $models[] = $normalized;
+        }
+    }
+
+    usort($models, static function (array $a, array $b): int {
+        $priorityCompare = (int)$a['priority'] <=> (int)$b['priority'];
+        if ($priorityCompare !== 0) return $priorityCompare;
+        return strcmp((string)$a['name'], (string)$b['name']);
+    });
+
+    $pickerModels = [];
+    foreach ($models as $row) {
+        $pickerModels[] = [
+            'id' => (string)$row['id'],
+            'name' => (string)$row['name']
+        ];
+    }
+
+    $_SESSION[AI_CHATGPT_MODELS_SESSION_KEY] = [
+        'account_id' => $accountId,
+        'fetched_at' => time(),
+        'models' => $pickerModels
+    ];
+
+    return [
+        'ok' => true,
+        'models' => $pickerModels,
+        'source' => 'remote'
+    ];
+}
+
+function aiOAuthGetAvailableModels(array $record): array
+{
+    $result = aiOAuthFetchRemoteModels($record, false);
+    $models = is_array($result['models'] ?? null) ? $result['models'] : [];
+    return [
+        'ok' => !empty($result['ok']),
+        'models' => $models,
+        'source' => (string)($result['source'] ?? 'remote'),
+        'status' => (int)($result['status'] ?? 0),
+        'error' => (string)($result['error'] ?? 'Failed to fetch remote model catalog.')
     ];
 }
 

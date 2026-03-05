@@ -17,28 +17,22 @@ if ($method !== 'GET') {
 }
 
 aiOAuthStartSession();
-$status = aiOAuthGetStatusPayload();
-if (empty($status['connected'])) {
+$authResult = aiOAuthRefreshAccessTokenIfNeeded(false);
+if (empty($authResult['connected']) || !is_array($authResult['record'] ?? null)) {
     aiOAuthSendJson(401, [
         'error' => 'not_connected',
         'error_description' => 'ChatGPT is not connected for this session.'
     ]);
 }
 
-$modelNames = [
-    'gpt-5.3-codex' => 'GPT-5.3 Codex',
-    'gpt-5.2-codex' => 'GPT-5.2 Codex',
-    'gpt-5.2' => 'GPT-5.2',
-    'gpt-5.1-codex' => 'GPT-5.1 Codex',
-    'gpt-5.1-codex-mini' => 'GPT-5.1 Codex Mini'
-];
-$models = [];
-foreach (AI_CHATGPT_ALLOWED_MODELS as $id) {
-    $models[] = ['id' => $id, 'name' => $modelNames[$id] ?? $id];
-}
+$record = $authResult['record'];
+$catalog = aiOAuthGetAvailableModels($record);
+$models = is_array($catalog['models'] ?? null) ? $catalog['models'] : [];
 
 aiOAuthSendJson(200, [
     'models' => $models,
     'connected' => true,
-    'expiresAt' => $status['expiresAt'] ?? null
+    'expiresAt' => ((int)($record['expires_at'] ?? 0)) * 1000,
+    'catalogSource' => (string)($catalog['source'] ?? 'remote'),
+    'catalogError' => (string)($catalog['error'] ?? '')
 ]);

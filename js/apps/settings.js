@@ -613,7 +613,7 @@ function renderAISection(windowId) {
                 <input type="range" id="ai-max-tokens-${windowId}" 
                     value="${maxTokens}" 
                     min="2048" 
-                    max="65536" 
+                    max="128000" 
                     step="1024"
                     style="width:100%;">
                 <div class="settings-row-desc" style="margin-top:8px;">

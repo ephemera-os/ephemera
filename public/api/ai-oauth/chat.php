@@ -34,16 +34,30 @@ if (empty($authResult['connected']) || !is_array($authResult['record'] ?? null))
 $record = $authResult['record'];
 $payload = aiOAuthReadJsonBody();
 
-$model = trim((string)($payload['model'] ?? 'gpt-5.2-codex'));
-if ($model === '') {
-    $model = 'gpt-5.2-codex';
+$remoteModelCatalog = aiOAuthFetchRemoteModels($record, false);
+$availableModelIds = [];
+if (!empty($remoteModelCatalog['ok']) && is_array($remoteModelCatalog['models'] ?? null)) {
+    foreach ($remoteModelCatalog['models'] as $row) {
+        if (!is_array($row)) continue;
+        $id = trim((string)($row['id'] ?? ''));
+        if ($id !== '') {
+            $availableModelIds[] = $id;
+        }
+    }
 }
-if (!in_array($model, AI_CHATGPT_ALLOWED_MODELS, true)) {
-    $message = 'Unsupported model: ' . $model;
+
+$model = trim((string)($payload['model'] ?? ''));
+if ($model === '') {
+    $model = $availableModelIds[0] ?? AI_CHATGPT_DEFAULT_MODEL;
+}
+
+if (!empty($availableModelIds) && !in_array($model, $availableModelIds, true)) {
+    $message = 'Unsupported model for this account: ' . $model;
     aiOAuthSendJson(400, [
         'error' => 'invalid_model',
         'error_description' => $message,
-        'message' => $message
+        'message' => $message,
+        'available_models' => $availableModelIds
     ]);
 }
 

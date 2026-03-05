@@ -73,7 +73,7 @@ const EphemeraAI = {
             id: 'chatgpt',
             name: 'ChatGPT Plus/Pro',
             apiKeySetting: null,
-            defaultModel: 'gpt-5.2-codex',
+            defaultModel: 'gpt-5.3-codex',
             authType: 'session',
             sessionProvider: 'chatgpt'
         }
@@ -112,13 +112,7 @@ const EphemeraAI = {
             { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
             { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' }
         ],
-        chatgpt: [
-            { id: 'gpt-5.3-codex', name: 'GPT-5.3 Codex' },
-            { id: 'gpt-5.2-codex', name: 'GPT-5.2 Codex' },
-            { id: 'gpt-5.2', name: 'GPT-5.2' },
-            { id: 'gpt-5.1-codex', name: 'GPT-5.1 Codex' },
-            { id: 'gpt-5.1-codex-mini', name: 'GPT-5.1 Codex Mini' }
-        ]
+        chatgpt: []
     },
 
     MODEL_PRICING_USD_PER_TOKEN: {
@@ -563,11 +557,15 @@ const EphemeraAI = {
                 if (!response.ok) throw new Error(`Failed to fetch models (${response.status})`);
                 const data = await response.json();
                 models = (Array.isArray(data.models) ? data.models : [])
-                    .filter(m => typeof m?.id === 'string' && m.id.trim())
-                    .map(m => ({
-                        id: String(m.id).trim(),
-                        name: String(m.name || m.id).trim()
-                    }));
+                    .map(m => {
+                        const id = String(m?.id || m?.slug || '').trim();
+                        if (!id) return null;
+                        return {
+                            id,
+                            name: String(m?.name || m?.display_name || id).trim()
+                        };
+                    })
+                    .filter(Boolean);
             } else if (targetProvider === 'anthropic') {
                 const response = await fetch('https://api.anthropic.com/v1/models', {
                     headers: {
@@ -642,6 +640,12 @@ const EphemeraAI = {
             models = this.getDefaultModels(targetProvider);
         }
 
+        if (models.length === 0) {
+            selectElement.innerHTML = '<option value="">No models available</option>';
+            selectElement.value = '';
+            return;
+        }
+
         selectElement.innerHTML = models.map(m => {
             const safeId = EphemeraSanitize.escapeAttr(m.id);
             const safeName = EphemeraSanitize.escapeHtml(m.name || m.id);
@@ -649,15 +653,22 @@ const EphemeraAI = {
         }).join('');
 
         if (currentSelection && !selectElement.querySelector(`option[value="${currentSelection}"]`)) {
-            const option = document.createElement('option');
-            option.value = currentSelection;
-            option.textContent = currentSelection.split('/').pop();
-            option.selected = true;
-            selectElement.insertBefore(option, selectElement.firstChild);
+            if (targetProvider === 'chatgpt') {
+                selectElement.value = models[0]?.id || '';
+            } else {
+                const option = document.createElement('option');
+                option.value = currentSelection;
+                option.textContent = currentSelection.split('/').pop();
+                option.selected = true;
+                selectElement.insertBefore(option, selectElement.firstChild);
+            }
         }
 
         if (currentSelection) {
-            selectElement.value = currentSelection;
+            const hasCurrent = Boolean(selectElement.querySelector(`option[value="${currentSelection}"]`));
+            if (!(targetProvider === 'chatgpt' && !hasCurrent)) {
+                selectElement.value = currentSelection;
+            }
         }
     },
 
